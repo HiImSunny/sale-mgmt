@@ -11,35 +11,41 @@ class Order extends Model
 
     protected $fillable = [
         'user_id',
+        'customer_id',
         'code',
         'payment_method',
         'payment_status',
         'status',
         'subtotal',
         'discount_total',
-        'shipping_fee',
         'grand_total',
-        'shipping_address_snapshot',
         'paid_at',
         'notes',
+        'type',
+        'parent_order_id',
+        'refund_reason',
+        'refund_reason_detail'
     ];
 
     protected $casts = [
         'subtotal' => 'decimal:2',
         'discount_total' => 'decimal:2',
-        'shipping_fee' => 'decimal:2',
         'grand_total' => 'decimal:2',
-        'shipping_address_snapshot' => 'array',
         'paid_at' => 'datetime',
     ];
 
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($order) {
             if (empty($order->code)) {
                 $order->code = 'ORD' . date('Ymd') . sprintf('%04d', rand(1, 9999));
+            }
+        });
+        static::updated(function ($order) {
+            if ($order->wasChanged('status') && $order->status === 'completed' && $order->customer_id) {
+                $order->customer->updateTotalSpent();
             }
         });
     }
@@ -50,19 +56,14 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     public function items()
     {
         return $this->hasMany(OrderItem::class);
-    }
-
-    public function payments()
-    {
-        return $this->hasMany(Payment::class);
-    }
-
-    public function shipments()
-    {
-        return $this->hasMany(Shipment::class);
     }
 
     // Scopes
@@ -79,5 +80,49 @@ class Order extends Model
     public function scopePaid($query)
     {
         return $query->where('payment_status', 'paid');
+    }
+
+    public function parentOrder()
+    {
+        return $this->belongsTo(Order::class, 'parent_order_id');
+    }
+
+    public function refundOrders()
+    {
+        return $this->hasMany(Order::class, 'parent_order_id');
+    }
+
+// Thêm scopes
+    public function scopeSales($query)
+    {
+        return $query->where('type', 'sale');
+    }
+
+    public function scopeRefunds($query)
+    {
+        return $query->where('type', 'refund');
+    }
+
+// Helper methods
+    public function isRefund()
+    {
+        return $this->type === 'refund';
+    }
+
+    public function canBeRefunded()
+    {
+        return $this->type === 'sale' &&
+            $this->status === 'confirmed' &&
+            $this->payment_status === 'paid';
+    }
+
+    public function getTotalRefundedAmount()
+    {
+        return $this->refundOrders()->sum('grand_total');
+    }
+
+    public function getRemainingRefundableAmount()
+    {
+        return $this->grand_total - $this->getTotalRefundedAmount();
     }
 }

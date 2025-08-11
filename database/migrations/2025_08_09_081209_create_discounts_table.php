@@ -9,7 +9,7 @@ return new class extends Migration
     {
         Schema::create('discounts', function (Blueprint $table) {
             $table->id();
-            $table->enum('scope', ['product', 'variant']);
+            $table->enum('scope', ['products', 'variant']);
             $table->enum('type', ['percent', 'fixed']);
             $table->decimal('value', 12, 2);
             $table->json('product_ids')->nullable();

@@ -9,7 +9,7 @@
             body { margin: 0; }
             .no-print { display: none !important; }
         }
-        
+
         body {
             font-family: 'DejaVu Sans', sans-serif;
             font-size: 12px;
@@ -18,96 +18,96 @@
             margin: 0;
             padding: 20px;
         }
-        
+
         .invoice-header {
             text-align: center;
             border-bottom: 2px solid #333;
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
-        
+
         .company-name {
             font-size: 20px;
             font-weight: bold;
             color: #8b4513;
             margin-bottom: 5px;
         }
-        
+
         .invoice-title {
             font-size: 18px;
             font-weight: bold;
             text-transform: uppercase;
             margin: 20px 0;
         }
-        
+
         .invoice-info {
             display: table;
             width: 100%;
             margin-bottom: 30px;
         }
-        
+
         .info-left, .info-right {
             display: table-cell;
             width: 50%;
             vertical-align: top;
         }
-        
+
         .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 30px;
         }
-        
+
         .items-table th,
         .items-table td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
-        
+
         .items-table th {
             background-color: #f8f1e8;
             font-weight: bold;
             text-align: center;
         }
-        
+
         .text-right { text-align: right; }
         .text-center { text-align: center; }
-        
+
         .total-section {
             float: right;
             width: 300px;
             margin-top: 20px;
         }
-        
+
         .total-row {
             display: table;
             width: 100%;
             margin-bottom: 5px;
         }
-        
+
         .total-label, .total-value {
             display: table-cell;
             padding: 5px;
         }
-        
+
         .total-label {
             text-align: left;
             width: 60%;
         }
-        
+
         .total-value {
             text-align: right;
             width: 40%;
             font-weight: bold;
         }
-        
+
         .grand-total {
             border-top: 2px solid #333;
             font-size: 14px;
             font-weight: bold;
         }
-        
+
         .footer {
             margin-top: 50px;
             text-align: center;
@@ -115,7 +115,7 @@
             color: #666;
             clear: both;
         }
-        
+
         .print-timestamp {
             position: absolute;
             top: 10px;
@@ -148,13 +148,13 @@
             <strong>Nhân viên:</strong> {{ $order->user->name ?? 'POS System' }}
         </div>
         <div class="info-right">
-            @if($order->user && $order->user->role === 'customer')
+            @if($order->user && $order->user->role === 'customerSeeder')
                 <strong>Khách hàng:</strong> {{ $order->user->name }}<br>
                 <strong>Email:</strong> {{ $order->user->email }}<br>
             @else
                 <strong>Khách hàng:</strong> Khách vãng lai<br>
             @endif
-            <strong>Phương thức TT:</strong> 
+            <strong>Phương thức TT:</strong>
             @switch($order->payment_method)
                 @case('cash_at_counter') Tiền mặt @break
                 @case('vnpay') VNPAY @break
@@ -205,21 +205,21 @@
             <div class="total-label">Tạm tính:</div>
             <div class="total-value">{{ number_format($order->subtotal, 0, ',', '.') }}₫</div>
         </div>
-        
+
         @if($order->discount_total > 0)
         <div class="total-row">
             <div class="total-label">Giảm giá:</div>
             <div class="total-value">-{{ number_format($order->discount_total, 0, ',', '.') }}₫</div>
         </div>
         @endif
-        
+
         @if($order->shipping_fee > 0)
         <div class="total-row">
             <div class="total-label">Phí vận chuyển:</div>
             <div class="total-value">{{ number_format($order->shipping_fee, 0, ',', '.') }}₫</div>
         </div>
         @endif
-        
+
         <div class="total-row grand-total">
             <div class="total-label">TỔNG CỘNG:</div>
             <div class="total-value">{{ number_format($order->grand_total, 0, ',', '.') }}₫</div>

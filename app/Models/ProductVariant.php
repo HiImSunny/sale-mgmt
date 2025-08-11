@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ProductVariant extends Model
 {
@@ -25,15 +27,15 @@ class ProductVariant extends Model
         'sale_price' => 'decimal:2',
     ];
 
-    // Relationships
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    public function attributeValues()
+    public function attributeValues(): BelongsToMany
     {
-        return $this->belongsToMany(AttributeValue::class, 'product_variant_values');
+        return $this->belongsToMany(AttributeValue::class, 'product_variant_values')
+            ->withPivot('attribute_id');
     }
 
     public function orderItems()
@@ -57,7 +59,7 @@ class ProductVariant extends Model
         $attrs = $this->attributeValues->map(function($attrValue) {
             return $attrValue->attribute->name . ': ' . $attrValue->value;
         })->implode(', ');
-        
+
         return $this->product->name . ($attrs ? " ({$attrs})" : '');
     }
 

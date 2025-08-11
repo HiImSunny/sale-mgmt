@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -56,14 +57,14 @@ class ProductController extends Controller
             ]);
         }
 
-        // Nếu không tìm thấy variant, tìm product
+        // Nếu không tìm thấy variant, tìm products
         $product = Product::with(['variants.attributeValues.attribute', 'images'])
             ->byCode($code)
             ->active()
             ->first();
 
         if ($product) {
-            // Nếu product có variants, yêu cầu chọn variant
+            // Nếu products có variants, yêu cầu chọn variant
             if ($product->variants->count() > 0) {
                 $variants = $product->variants->map(function ($variant) {
                     $attributes = $variant->attributeValues->map(function ($attrValue) {
@@ -98,10 +99,10 @@ class ProductController extends Controller
                 ]);
             }
 
-            // Nếu không có variants, trả về product trực tiếp
+            // Nếu không có variants, trả về products trực tiếp
             return response()->json([
                 'success' => true,
-                'type' => 'product',
+                'type' => 'products',
                 'data' => [
                     'id' => $product->id,
                     'name' => $product->name,
@@ -126,7 +127,7 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q');
-        $type = $request->get('type', 'all'); // all, product, variant
+        $type = $request->get('type', 'all'); // all, products, variant
         $category = $request->get('category');
         $limit = $request->get('limit', 20);
 
@@ -201,7 +202,7 @@ class ProductController extends Controller
         }
 
         // Tìm products không có variants
-        if ($type === 'all' || $type === 'product') {
+        if ($type === 'all' || $type === 'products') {
             $productQuery = Product::with(['images', 'categories'])
                 ->where('status', 1)
                 ->whereDoesntHave('variants')
@@ -225,7 +226,7 @@ class ProductController extends Controller
                 $categories = $product->categories->pluck('name')->implode(', ');
 
                 $results[] = [
-                    'type' => 'product',
+                    'type' => 'products',
                     'id' => $product->id,
                     'product_id' => $product->id,
                     'name' => $product->name,
@@ -236,7 +237,7 @@ class ProductController extends Controller
                     'price' => $product->price,
                     'sale_price' => $product->sale_price,
                     'final_price' => $product->final_price,
-                    'stock' => 999, // Giả định không giới hạn cho product
+                    'stock' => 999, // Giả định không giới hạn cho products
                     'categories' => $categories,
                     'attributes' => '',
                     'thumbnail' => $product->images->first()?->path ?? '/images/no-image.png'
@@ -254,7 +255,7 @@ class ProductController extends Controller
     // API lấy danh sách categories cho filter
     public function categories()
     {
-        $categories = \App\Models\Category::where('status', 1)
+        $categories = Category::where('status', 1)
             ->orderBy('name')
             ->get(['id', 'name']);
 

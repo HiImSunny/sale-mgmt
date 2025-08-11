@@ -26,9 +26,9 @@ class UserSeeder extends Seeder
 
         User::create([
             'name' => 'Customer User',
-            'email' => 'customer@pacific.store',
+            'email' => 'customerSeeder@pacific.store',
             'password' => Hash::make('123456'),
-            'role' => 'customer',
+            'role' => 'customerSeeder',
         ]);
     }
 }

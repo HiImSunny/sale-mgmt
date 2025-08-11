@@ -11,11 +11,17 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    /**
+     * @var mixed|string
+     */
     protected $fillable = [
         'name',
         'email',
         'password',
         'role',
+        'provider',
+        'provider_id',
+        'avatar',
     ];
 
     protected $hidden = [
@@ -24,34 +30,26 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
 
-    // Relationships
-    public function addresses()
+    public function hasRole($role)
     {
-        return $this->hasMany(CustomerAddress::class);
+        return $this->role === $role;
     }
 
-    public function orders()
+    public function assignRole($role)
     {
-        return $this->hasMany(Order::class);
+        return $this->role = $role;
     }
 
-    // Role checks
-    public function isAdmin()
+    public function hasProvider($provider): bool
     {
-        return $this->role === 'admin';
+        return $this->provider === $provider && $this->provider_id;
     }
 
-    public function isSeller()
+    public function isSocialUser(): bool
     {
-        return $this->role === 'seller';
-    }
-
-    public function isCustomer()
-    {
-        return $this->role === 'customer';
+        return !is_null($this->provider) && !is_null($this->provider_id);
     }
 }
