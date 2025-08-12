@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
-use App\Models\Payment;
 
 class DashboardController extends Controller
 {
@@ -26,27 +25,55 @@ class DashboardController extends Controller
 
         $analytics = $this->getAnalyticsData($today, $yesterday, $thisMonth, $lastMonthStart, $lastMonthEnd);
 
-        return view('dashboard', compact('analytics')); //  Sửa view path
+        return view('dashboard', compact('analytics'));
     }
 
     private function getAnalyticsData($today, $yesterday, $thisMonth, $lastMonthStart, $lastMonthEnd)
     {
-        // Basic metrics
+        // ✅ Fixed: Trừ refund khỏi doanh thu
         $todaySales = Order::whereDate('created_at', $today)
             ->where('status', 'completed')
-            ->sum('grand_total');
+            ->selectRaw("
+                SUM(CASE
+                    WHEN type = 'sale' THEN grand_total
+                    WHEN type = 'refund' THEN -grand_total
+                    ELSE 0
+                END) as revenue
+            ")
+            ->value('revenue') ?? 0;
 
         $yesterdaySales = Order::whereDate('created_at', $yesterday)
             ->where('status', 'completed')
-            ->sum('grand_total');
+            ->selectRaw("
+                SUM(CASE
+                    WHEN type = 'sale' THEN grand_total
+                    WHEN type = 'refund' THEN -grand_total
+                    ELSE 0
+                END) as revenue
+            ")
+            ->value('revenue') ?? 0;
 
         $monthlyRevenue = Order::where('created_at', '>=', $thisMonth)
             ->where('status', 'completed')
-            ->sum('grand_total');
+            ->selectRaw("
+                SUM(CASE
+                    WHEN type = 'sale' THEN grand_total
+                    WHEN type = 'refund' THEN -grand_total
+                    ELSE 0
+                END) as revenue
+            ")
+            ->value('revenue') ?? 0;
 
         $lastMonthRevenue = Order::whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])
             ->where('status', 'completed')
-            ->sum('grand_total');
+            ->selectRaw("
+                SUM(CASE
+                    WHEN type = 'sale' THEN grand_total
+                    WHEN type = 'refund' THEN -grand_total
+                    ELSE 0
+                END) as revenue
+            ")
+            ->value('revenue') ?? 0;
 
         // Calculate growth rates
         $salesGrowth = $yesterdaySales > 0 ?
@@ -55,11 +82,19 @@ class DashboardController extends Controller
         $monthlyGrowth = $lastMonthRevenue > 0 ?
             round((($monthlyRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 2) : 0;
 
-        // Orders data
-        $todayOrders = Order::whereDate('created_at', $today)->count();
+        // ✅ Fixed: Orders data - chỉ đếm orders bán hàng
+        $todayOrders = Order::whereDate('created_at', $today)
+            ->where('type', 'sale')
+            ->count();
+
         $completedOrders = Order::whereDate('created_at', $today)
-            ->where('status', 'completed')->count();
-        $pendingOrders = Order::where('status', 'pending')->count();
+            ->where('status', 'completed')
+            ->where('type', 'sale')
+            ->count();
+
+        $pendingOrders = Order::where('status', 'pending')
+            ->where('type', 'sale')
+            ->count();
 
         // Customer data
         $newCustomersToday = Customer::whereDate('created_at', $today)->count();
@@ -71,21 +106,18 @@ class DashboardController extends Controller
             ->count();
         $totalEmployees = User::whereIn('role', ['admin', 'seller'])->count();
 
-        // Stock data
-        $lowStockCount = ProductVariant::where('stock', '<=', 10)->count();
-        $lowStockProducts = ProductVariant::with('product')
-            ->where('stock', '<=', 10)
-            ->orderBy('stock', 'asc')
-            ->limit(10)
-            ->get();
+        // ✅ FIXED: Stock data - sử dụng stock_quantity thay vì stock
+        $lowStockCount = $this->getLowStockCount();
+        $lowStockProducts = $this->getLowStockProducts();
 
-        // Failed payments
+        // ✅ Fixed: Failed payments - chỉ đếm orders bán hàng
         $failedPayments = Order::whereDate('created_at', $today)
             ->where('payment_status', 'failed')
+            ->where('type', 'sale')
             ->count();
 
-        // Recent orders
-        $recentOrders = Order::with(['customer', 'user'])
+        // Recent orders - keep as is since you already filter out refunds
+        $recentOrders = Order::whereNot('type', 'refund')->with(['customer', 'user'])
             ->latest()
             ->limit(10)
             ->get();
@@ -132,29 +164,88 @@ class DashboardController extends Controller
         ];
     }
 
+    // ✅ NEW: Method riêng để tính low stock với logic mới
+    private function getLowStockCount()
+    {
+        // Đếm products đơn giản có stock thấp
+        $simpleProductsLowStock = Product::where('has_variants', false)
+            ->where('stock_quantity', '<=', 10)
+            ->count();
+
+        // Đếm variants có stock thấp
+        $variantsLowStock = ProductVariant::where('stock_quantity', '<=', 10)
+            ->count();
+
+        return $simpleProductsLowStock + $variantsLowStock;
+    }
+
+    // ✅ NEW: Method riêng để lấy low stock products với logic mới
+    private function getLowStockProducts()
+    {
+        $lowStockItems = collect();
+
+        // Lấy simple products có stock thấp
+        $simpleProducts = Product::where('has_variants', false)
+            ->where('stock_quantity', '<=', 10)
+            ->orderBy('stock_quantity', 'asc')
+            ->limit(5)
+            ->get()
+            ->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'stock_quantity' => $product->stock_quantity,
+                    'type' => 'simple_product'
+                ];
+            });
+
+        // Lấy variants có stock thấp
+        $variants = ProductVariant::with('product')
+            ->where('stock_quantity', '<=', 10)
+            ->orderBy('stock_quantity', 'asc')
+            ->limit(5)
+            ->get()
+            ->map(function($variant) {
+                return [
+                    'id' => $variant->id,
+                    'name' => $variant->product->name,
+                    'sku' => $variant->sku,
+                    'stock_quantity' => $variant->stock_quantity,
+                    'type' => 'variant'
+                ];
+            });
+
+        return $lowStockItems->merge($simpleProducts)
+            ->merge($variants)
+            ->sortBy('stock_quantity')
+            ->take(10)
+            ->values();
+    }
+
+    // ✅ FIXED: Top products với stock_quantity
     private function getTopProducts()
     {
-        //  SỬA: Bỏ p.thumbnail vì không tồn tại trong schema
         return DB::table('order_items as oi')
             ->join('orders as o', 'oi.order_id', '=', 'o.id')
             ->join('product_variants as pv', 'oi.product_variant_id', '=', 'pv.id')
             ->join('products as p', 'pv.product_id', '=', 'p.id')
             ->where('o.status', 'completed')
+            ->where('o.type', 'sale') // ✅ Fixed: Chỉ lấy orders bán hàng
             ->where('o.created_at', '>=', Carbon::now()->subDays(30))
             ->select(
                 'p.id',
                 'p.name',
-                'pv.stock',
-                'pv.sku', //  Thêm SKU để hiển thị
+                'pv.stock_quantity', // ✅ FIXED: stock -> stock_quantity
+                'pv.sku',
                 DB::raw('SUM(oi.quantity) as total_sold'),
                 DB::raw('SUM(oi.line_total) as revenue')
             )
-            ->groupBy('p.id', 'p.name', 'pv.stock', 'pv.sku')
+            ->groupBy('p.id', 'p.name', 'pv.stock_quantity', 'pv.sku')
             ->orderBy('total_sold', 'desc')
             ->limit(10)
             ->get()
             ->map(function($product) {
-                //  Set thumbnail null hoặc default image
                 $product->thumbnail = null;
                 return $product;
             });
@@ -168,10 +259,10 @@ class DashboardController extends Controller
 
         $totalCustomers = Customer::count();
         $tierClasses = [
-            'bronze' => 'secondary',
-            'silver' => 'info',
-            'gold' => 'warning',
-            'platinum' => 'primary'
+            'platinum' => 'platinum',
+            'gold' => 'gold',
+            'silver' => 'silver',
+            'bronze' => 'bronze',
         ];
 
         return $tiers->map(function ($tier) use ($totalCustomers, $tierClasses) {
@@ -201,29 +292,42 @@ class DashboardController extends Controller
                 break;
         }
 
-        // ✅ SỬA: Group BY expression phù hợp với strict mode
         if ($period === '12months') {
+            // ✅ Fixed: Trừ refund trong chart data
             $salesData = Order::where('created_at', '>=', $startDate)
                 ->where('status', 'completed')
                 ->select(
                     DB::raw('YEAR(created_at) as year'),
                     DB::raw('MONTH(created_at) as month'),
-                    DB::raw('SUM(grand_total) as total_sales'),
-                    DB::raw('DATE(MIN(created_at)) as date') // ✅ Aggregate function
+                    DB::raw("
+                        SUM(CASE
+                            WHEN type = 'sale' THEN grand_total
+                            WHEN type = 'refund' THEN -grand_total
+                            ELSE 0
+                        END) as total_sales
+                    "),
+                    DB::raw('DATE(MIN(created_at)) as date')
                 )
                 ->groupBy(DB::raw('YEAR(created_at), MONTH(created_at)'))
                 ->orderBy('year', 'asc')
-                ->orderBy('month', 'asc') // ✅ Order by grouped columns
+                ->orderBy('month', 'asc')
                 ->get();
         } else {
+            // ✅ Fixed: Trừ refund trong chart data
             $salesData = Order::where('created_at', '>=', $startDate)
                 ->where('status', 'completed')
                 ->select(
                     DB::raw('DATE(created_at) as date'),
-                    DB::raw('SUM(grand_total) as total_sales')
+                    DB::raw("
+                        SUM(CASE
+                            WHEN type = 'sale' THEN grand_total
+                            WHEN type = 'refund' THEN -grand_total
+                            ELSE 0
+                        END) as total_sales
+                    ")
                 )
                 ->groupBy(DB::raw('DATE(created_at)'))
-                ->orderBy(DB::raw('DATE(created_at)'), 'asc') // ✅ Order by grouped expression
+                ->orderBy(DB::raw('DATE(created_at)'), 'asc')
                 ->get();
         }
 
@@ -261,9 +365,9 @@ class DashboardController extends Controller
         ];
     }
 
+    // ✅ FIXED: Category revenue với relationship mới
     private function getCategoryRevenueData()
     {
-        //  Kiểm tra xem có categories không trước khi query
         $categoryCount = Category::count();
         if ($categoryCount === 0) {
             return [
@@ -279,6 +383,7 @@ class DashboardController extends Controller
             ->join('product_categories as pc', 'p.id', '=', 'pc.product_id')
             ->join('categories as c', 'pc.category_id', '=', 'c.id')
             ->where('o.status', 'completed')
+            ->where('o.type', 'sale')
             ->where('o.created_at', '>=', Carbon::now()->subDays(30))
             ->select('c.name', DB::raw('SUM(oi.line_total) as revenue'))
             ->groupBy('c.id', 'c.name')
@@ -301,9 +406,10 @@ class DashboardController extends Controller
 
     private function getPaymentMethodData()
     {
-        // ✅ Lấy data trực tiếp từ Orders thay vì Payments
+        // ✅ Fixed: Chỉ lấy orders bán hàng
         $paymentMethods = Order::where('status', 'completed')
             ->where('payment_status', 'paid')
+            ->where('type', 'sale') // ✅ Chỉ lấy orders bán hàng
             ->where('created_at', '>=', Carbon::now()->subDays(30))
             ->select('payment_method', DB::raw('COUNT(*) as count'))
             ->groupBy('payment_method')
@@ -316,7 +422,6 @@ class DashboardController extends Controller
             ];
         }
 
-        // ✅ Updated labels theo schema orders
         $methodLabels = [
             'vnpay' => 'VNPay',
             'cash_at_counter' => 'Tiền mặt tại quầy',
@@ -331,13 +436,13 @@ class DashboardController extends Controller
         ];
     }
 
-
     private function getRecentActivities()
     {
         $activities = collect();
 
-        // Recent orders
+        // ✅ Fixed: Chỉ lấy orders bán hàng trong recent activities
         $recentOrders = Order::with('user')
+            ->where('type', 'sale') // ✅ Chỉ lấy orders bán hàng
             ->latest()
             ->limit(5)
             ->get();
@@ -388,9 +493,20 @@ class DashboardController extends Controller
     public function getSalesChart(Request $request)
     {
         $period = $request->get('period', '7days');
-        $chartData = $this->getSalesChartData($period);
 
-        return response()->json($chartData);
+        try {
+            $chartData = $this->getSalesChartData($period);
+
+            return response()->json([
+                'success' => true,
+                'data' => $chartData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi tải dữ liệu: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function refreshDashboard()

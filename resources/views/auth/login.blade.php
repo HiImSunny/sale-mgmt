@@ -1,7 +1,7 @@
 {{-- resources/views/auth/login.blade.php --}}
 @extends('layouts.auth')
 
-@section('title', 'Đăng nhập hệ thống POS')
+@section('title', 'Đăng nhập hệ thống')
 
 @section('content')
     <form method="POST" action="{{ route('login') }}">
@@ -9,7 +9,7 @@
 
         {{-- Page Title - Compact --}}
         <div class="auth-page-title">
-            <h2>Đăng nhập POS</h2>
+            <h2>Đăng nhập</h2>
             <p>Dành cho Admin & Nhân viên bán hàng</p>
         </div>
 

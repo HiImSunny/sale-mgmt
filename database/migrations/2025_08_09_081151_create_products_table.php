@@ -17,9 +17,11 @@ return new class extends Migration
             $table->string('sku')->unique();
             $table->string('ean13')->nullable();
             $table->string('upc')->nullable();
+            $table->integer('stock_quantity')->default(0);
+            $table->boolean('has_variants')->default(false);
             $table->tinyInteger('status')->default(1);
             $table->timestamps();
-            
+
             $table->index(['sku']);
             $table->index(['ean13']);
             $table->index(['upc']);

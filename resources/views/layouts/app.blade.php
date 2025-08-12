@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+{{-- resources/views/layouts/app.blade.php --}}
+    <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
@@ -9,8 +10,7 @@
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     {{-- CSS Libraries --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -27,8 +27,16 @@
 
     <style>
         :root {
-            --sidebar-width: 280px;
-            --header-height: 70px;
+            --header-height: 60px;
+            --navbar-height: 50px;
+            --primary-color: #8B4513;
+            --accent-color: #D2B48C;
+            --light-color: #F5F5F0;
+            --dark-color: #2d3748;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
         }
 
         * {
@@ -40,28 +48,32 @@
             background-color: var(--light-color);
             margin: 0;
             padding: 0;
+            padding-top: calc(var(--header-height) + var(--navbar-height));
         }
 
-        /* Sidebar Styles */
-        .sidebar {
+        /* Top Header */
+        .top-header {
             position: fixed;
             top: 0;
             left: 0;
-            width: var(--sidebar-width);
-            height: 100vh;
-            background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+            right: 0;
+            height: var(--header-height);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #6B3410 100%);
             color: white;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-            overflow-y: auto;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        .brand-section {
+            display: flex;
+            align-items: center;
+            margin-right: 2rem;
         }
 
-        .sidebar-brand {
+        .brand-logo {
             font-size: 1.5rem;
             font-weight: 700;
             color: white;
@@ -70,258 +82,248 @@
             align-items: center;
         }
 
-        .sidebar-brand i {
+        .brand-logo i {
             margin-right: 0.5rem;
             color: var(--accent-color);
         }
 
-        .sidebar-nav {
-            padding: 1rem 0;
-        }
-
-        .nav-section {
-            margin-bottom: 1.5rem;
-        }
-
-        .nav-section-title {
-            padding: 0 1.5rem 0.5rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.6);
-            letter-spacing: 0.05em;
-        }
-
-        .nav-link {
+        .header-center {
+            flex: 1;
             display: flex;
             align-items: center;
-            padding: 0.875rem 1.5rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.2s ease;
-            border: none;
-            position: relative;
-        }
-
-        .nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: white;
-            transform: translateX(4px);
-        }
-
-        .nav-link.active {
-            background-color: var(--accent-color);
-            color: white;
-        }
-
-        .nav-link.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: white;
-        }
-
-        .nav-link i {
-            width: 20px;
-            margin-right: 0.75rem;
-            font-size: 1.1rem;
-        }
-
-        .nav-badge {
-            margin-left: auto;
-            background-color: var(--danger-color);
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        /* Main Content */
-        .main-wrapper {
-            margin-left: var(--sidebar-width);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Header */
-        .main-header {
-            height: var(--header-height);
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            padding: 0 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 999;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-        }
-
-        .sidebar-toggle {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 1.25rem;
-            color: var(--dark-color);
-            margin-right: 1rem;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
-        }
-
-        .sidebar-toggle:hover {
-            background-color: var(--light-color);
+            justify-content: center;
         }
 
         .page-title {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 600;
-            color: var(--dark-color);
             margin: 0;
+            color: white;
         }
 
         .header-right {
-            margin-left: auto;
             display: flex;
             align-items: center;
             gap: 1rem;
         }
 
-        .header-notifications {
-            position: relative;
+        .header-time {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-right: 1rem;
         }
 
-        .notification-btn {
-            background: none;
-            border: none;
-            color: var(--secondary-color);
-            font-size: 1.25rem;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .notification-btn:hover {
-            background-color: var(--light-color);
-            color: var(--dark-color);
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 0.25rem;
-            right: 0.25rem;
-            background-color: var(--danger-color);
-            color: white;
-            border-radius: 50%;
-            width: 8px;
-            height: 8px;
-        }
-
-        .user-dropdown {
+        .user-menu {
             position: relative;
         }
 
         .user-menu-btn {
             display: flex;
             align-items: center;
-            background: none;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
-            padding: 0.5rem;
+            padding: 0.5rem 1rem;
             border-radius: 0.5rem;
-            transition: background-color 0.2s;
+            color: white;
             text-decoration: none;
-            color: inherit;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
         }
 
         .user-menu-btn:hover {
-            background-color: var(--light-color);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
         }
 
         .user-avatar {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            width: 28px;
+            height: 28px;
+            background: var(--accent-color);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: var(--primary-color);
             font-weight: 600;
+            font-size: 0.8rem;
             margin-right: 0.5rem;
         }
 
-        .user-info h6 {
-            margin: 0;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--dark-color);
-        }
-
-        .user-info small {
-            color: var(--secondary-color);
-            font-size: 0.75rem;
-        }
-
-        /* Main Content Area */
-        .main-content {
-            flex: 1;
-            padding: 2rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.show {
-                transform: translateX(0);
-            }
-
-            .main-wrapper {
-                margin-left: 0;
-            }
-
-            .sidebar-toggle {
-                display: block;
-            }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .header-right .user-info {
-                display: none;
-            }
-        }
-
-        /* Overlay for mobile */
-        .sidebar-overlay {
-            display: none;
+        /* Main Navigation */
+        .main-navigation {
             position: fixed;
-            top: 0;
+            top: var(--header-height);
             left: 0;
             right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
+            height: var(--navbar-height);
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
+        .nav-container {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .nav-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-group {
+            display: flex;
+            align-items: center;
+            margin-right: 2rem;
+            min-width: max-content;
+        }
+
+        .nav-group:last-child {
+            margin-right: 0;
+        }
+
+        .nav-group-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-right: 1rem;
+            min-width: max-content;
+        }
+
+        .nav-items {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--dark-color);
+            text-decoration: none;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            background-color: var(--light-color);
+            color: var(--primary-color);
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .nav-link i {
+            width: 16px;
+            margin-right: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .nav-badge {
+            position: absolute;
+            top: -0.25rem;
+            right: -0.25rem;
+            background-color: var(--danger-color);
+            color: white;
+            padding: 0.125rem 0.375rem;
+            border-radius: 9999px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            min-width: 1.25rem;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 1.5rem;
+            min-height: calc(100vh - var(--header-height) - var(--navbar-height));
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-            .sidebar-overlay.show {
-                display: block;
+            body {
+                padding-top: calc(var(--header-height) + 60px);
             }
+
+            .main-navigation {
+                height: 60px;
+            }
+
+            .nav-container {
+                padding: 0.5rem 1rem;
+                gap: 1rem;
+            }
+
+            .nav-group {
+                margin-right: 1.5rem;
+            }
+
+            .nav-group-title {
+                display: none;
+            }
+
+            .nav-link {
+                flex-direction: column;
+                padding: 0.375rem 0.75rem;
+                font-size: 0.75rem;
+                text-align: center;
+            }
+
+            .nav-link i {
+                margin-right: 0;
+                margin-bottom: 0.25rem;
+                font-size: 1rem;
+            }
+
+            .header-time {
+                display: none;
+            }
+
+            .user-menu-btn .user-info {
+                display: none;
+            }
+
+            .page-title {
+                font-size: 1rem;
+            }
+        }
+
+        /* Dropdown Menu */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .dropdown-item {
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--light-color);
+            color: var(--primary-color);
+        }
+
+        .dropdown-item.text-danger:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
         }
 
         /* Utility Classes */
@@ -360,197 +362,172 @@
 
 <body>
 <div id="app">
-    {{-- Sidebar --}}
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <a href="{{ route('dashboard') }}" class="sidebar-brand">
+    {{-- Top Header --}}
+    <header class="top-header">
+        <div class="brand-section">
+            <a href="{{ route('dashboard') }}" class="brand-logo">
                 PacificStore
             </a>
         </div>
 
-        <nav class="sidebar-nav">
-            @if(auth()->user()->role === 'admin')
-                <div class="nav-section">
-                    <div class="nav-section-title">Tổng quan</div>
-                    <a href="{{ route('dashboard') }}"
-                       class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <i class="fas fa-tachometer-alt"></i>
-                        Dashboard
-                    </a>
-                </div>
-            @endif
+        <div class="header-center">
+            <h1 class="page-title">@yield('page-title', 'Dashboard')</h1>
+        </div>
 
-
-            {{-- POS --}}
-            <div class="nav-section">
-                <div class="nav-section-title">Bán hàng</div>
-                <a href="{{ route('pos') }}" class="nav-link {{ request()->routeIs('pos*') ? 'active' : '' }}">
-                    <i class="fas fa-cash-register"></i>
-                    Bán hàng tại quầy
-                </a>
-                <a href="{{ route('customers.index')  }}" class="nav-link {{ request()->routeIs('customer*') ? 'active' : '' }}">
-                    <i class="fas fa-users"></i>
-                    Khách hàng
-                </a>
-                <a href="{{ route('orders.index') }}" class="nav-link {{ request()->routeIs('order*') ? 'active' : '' }}">
-                    <i class="fas fa-receipt"></i>
-                    Đơn hàng
-                    @if(isset($pendingOrdersCount) && $pendingOrdersCount > 0)
-                        <span class="nav-badge">{{ $pendingOrdersCount }}</span>
-                    @endif
-                </a>
+        <div class="header-right">
+            <div class="header-time" id="currentTime">
+                {{ now()->format('H:i:s - d/m/Y') }}
             </div>
 
-            <div class="nav-section">
-                <div class="nav-section-title">Sản phẩm</div>
-                <a href="#products.index" class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                    <i class="fas fa-box"></i>
-                    Sản phẩm
+            {{-- User Menu --}}
+            <div class="user-menu dropdown">
+                <a href="#" class="user-menu-btn" data-bs-toggle="dropdown">
+                    <div class="user-avatar">
+                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                    </div>
+                    <div class="user-info d-none d-md-block">
+                        <div style="font-size: 0.875rem; font-weight: 600;">{{ Auth::user()->name }}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.8;">{{ ucfirst(Auth::user()->role) }}</div>
+                    </div>
+                    <i class="fas fa-chevron-down ms-2 d-none d-md-inline"></i>
                 </a>
-                <a href="#categories.index" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
-                    <i class="fas fa-tags"></i>
-                    Danh mục
-                </a>
-                <a href="#inventory.index" class="nav-link {{ request()->routeIs('inventory.*') ? 'active' : '' }}">
-                    <i class="fas fa-warehouse"></i>
-                    Tồn kho
-                </a>
+
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li class="dropdown-header">
+                        <div class="fw-bold">{{ Auth::user()->name }}</div>
+                        <small class="text-muted">{{ Auth::user()->email }}</small>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#profile.edit">
+                            <i class="fas fa-user me-2"></i>Hồ sơ cá nhân
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#settings.index">
+                            <i class="fas fa-cog me-2"></i>Cài đặt
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="dropdown-item text-danger">
+                                <i class="fas fa-sign-out-alt me-2"></i>Đăng xuất
+                            </button>
+                        </form>
+                    </li>
+                </ul>
             </div>
+        </div>
+    </header>
 
-            @if(auth()->user()->role === 'admin')
-                <div class="nav-section">
-                    <div class="nav-section-title">Báo cáo</div>
-                    <a href="#reports.sales" class="nav-link {{ request()->routeIs('reports.sales') ? 'active' : '' }}">
-                        <i class="fas fa-chart-line"></i>
-                        Báo cáo bán hàng
+    {{-- Main Navigation --}}
+    <nav class="main-navigation">
+        <div class="nav-container">
+            {{-- Core POS Functions - Always visible --}}
+            <div class="nav-group primary">
+                <div class="nav-items">
+                    <a href="{{ route('pos') }}" class="nav-link pos-btn {{ request()->routeIs('pos*') ? 'active' : '' }}">
+                        <i class="fas fa-cash-register"></i>
+                        <span>Bán hàng</span>
                     </a>
-                    <a href="#reports.inventory"
-                       class="nav-link {{ request()->routeIs('reports.inventory') ? 'active' : '' }}">
-                        <i class="fas fa-chart-bar"></i>
-                        Báo cáo tồn kho
+                    <a href="{{ route('orders.index') }}" class="nav-link {{ request()->routeIs('order*') ? 'active' : '' }}">
+                        <i class="fas fa-receipt"></i>
+                        <span>Đơn hàng</span>
+                        @if(isset($pendingOrdersCount) && $pendingOrdersCount > 0)
+                            <span class="nav-badge">{{ $pendingOrdersCount }}</span>
+                        @endif
                     </a>
-                </div>
-            @endif
-
-            @if(auth()->user()->role === 'admin')
-                <div class="nav-section">
-                    <div class="nav-section-title">Quản trị</div>
-                    <a href="#users.index" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                    <a href="{{ route('customers.index') }}" class="nav-link {{ request()->routeIs('customer*') ? 'active' : '' }}">
                         <i class="fas fa-users"></i>
-                        Người dùng
-                    </a>
-                    <a href="#backup.index" class="nav-link {{ request()->routeIs('database.*') ? 'active' : '' }}">
-                        <i class="fas fa-database"></i>
-                        Sao lưu & khôi phục
-                    </a>
-                    <a href="#settings.index" class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}">
-                        <i class="fas fa-cog"></i>
-                        Cài đặt
+                        <span>Khách hàng</span>
                     </a>
                 </div>
-            @endif
-        </nav>
-    </aside>
+            </div>
 
-    {{-- Sidebar Overlay for Mobile --}}
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+            {{-- Product Management --}}
+            <div class="nav-group">
+                <div class="nav-group-title">Sản phẩm</div>
+                <div class="nav-items">
+                    <a href="{{ route('products.index') }}" class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
+                        <i class="fas fa-box"></i>
+                        <span>Kho hàng</span>
+                    </a>
+                    <a href="#categories.index" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                        <i class="fas fa-tags"></i>
+                        <span>Danh mục</span>
+                    </a>
+                </div>
+            </div>
+
+            {{-- Admin Only Sections --}}
+            @if(auth()->user()->role === 'admin')
+                <div class="nav-group">
+                    <div class="nav-group-title">Phân tích</div>
+                    <div class="nav-items">
+                        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Thống kê</span>
+                        </a>
+                        <a href="#reports.sales" class="nav-link {{ request()->routeIs('reports.sales') ? 'active' : '' }}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Báo cáo</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-title">Hệ thống</div>
+                    <div class="nav-items">
+                        <a href="#users.index" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                            <i class="fas fa-user-cog"></i>
+                            <span>Nhân viên</span>
+                        </a>
+                        <a href="#backup.index" class="nav-link {{ request()->routeIs('backup*') ? 'active' : '' }}">
+                            <i class="fas fa-database"></i>
+                            <span>Sao lưu</span>
+                        </a>
+                        <a href="#settings.index" class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}">
+                            <i class="fas fa-cog"></i>
+                            <span>Cài đặt</span>
+                        </a>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </nav>
+
 
     {{-- Main Content --}}
-    <div class="main-wrapper">
-        {{-- Header --}}
-        <header class="main-header">
-            <div class="header-left">
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h1 class="page-title">@yield('page-title', 'Dashboard')</h1>
-            </div>
-
-            <div class="header-right">
-
-
-                {{-- User Menu --}}
-                <div class="user-dropdown dropdown">
-                    <a href="#" class="user-menu-btn" data-bs-toggle="dropdown">
-                        <div class="user-avatar">
-                            {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
-                        </div>
-                        <div class="user-info">
-                            <h6>{{ Auth::user()->name }}</h6>
-                            <small>{{ ucfirst(Auth::user()->role) }}</small>
-                        </div>
-                        <i class="fas fa-chevron-down ms-2"></i>
-                    </a>
-
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li class="dropdown-header">
-                            <div class="fw-bold">{{ Auth::user()->name }}</div>
-                            <small class="text-muted">{{ Auth::user()->email }}</small>
-                        </li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="#profile.edit">
-                                <i class="fas fa-user me-2"></i>Hồ sơ cá nhân
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="#settings.index">
-                                <i class="fas fa-cog me-2"></i>Cài đặt
-                            </a>
-                        </li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="dropdown-item text-danger">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Đăng xuất
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </header>
-
-        {{-- Main Content Area --}}
-        <main class="main-content">
-            @yield('content')
-        </main>
-    </div>
+    <main class="main-content">
+        @yield('content')
+    </main>
 </div>
 
 {{-- Scripts --}}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Sidebar Toggle
-    document.addEventListener('DOMContentLoaded', function () {
-        const sidebarToggle = document.getElementById('sidebarToggle');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
+    // Real-time clock
+    function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('vi-VN', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        }) + ' - ' + now.toLocaleDateString('vi-VN');
 
-        function toggleSidebar() {
-            sidebar.classList.toggle('show');
-            sidebarOverlay.classList.toggle('show');
+        const timeElement = document.getElementById('currentTime');
+        if (timeElement) {
+            timeElement.textContent = timeString;
         }
+    }
 
-        sidebarToggle?.addEventListener('click', toggleSidebar);
-        sidebarOverlay?.addEventListener('click', toggleSidebar);
-
-        // Close sidebar when clicking on nav links (mobile)
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('show');
-                    sidebarOverlay.classList.remove('show');
-                }
-            });
-        });
-    });
+    // Update time every second
+    setInterval(updateTime, 1000);
+    updateTime(); // Initial call
 
     // Modern Alert System
     window.PosAlert = {

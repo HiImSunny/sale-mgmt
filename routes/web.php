@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\POSController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\VNPayController;
@@ -37,10 +38,19 @@ Route::middleware(['auth', 'role:seller,admin'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::post('/orders/{order}/refund', [OrderController::class, 'createRefund'])->name('orders.create-refund');
+
+    Route::resource('products', ProductController::class);
+    Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage'])
+        ->name('products.images.delete');
+    Route::post('products/bulk-delete', [ProductController::class, 'bulkDelete'])
+        ->name('products.bulk-delete');
+    Route::get('products-export', [ProductController::class, 'export'])
+        ->name('products.export');
 });
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
+    Route::get('/orders/{order}/refund-invoice', [OrderController::class, 'refundInvoice'])->name('orders.refund-invoice');
 });
 
 Route::get('/vnpay/return', [VNPayController::class, 'handleReturn'])->name('vnpay.return');

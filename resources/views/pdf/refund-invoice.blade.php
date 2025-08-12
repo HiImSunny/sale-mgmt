@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8">
-    <title>Hóa Đơn Bán Hàng #{{ $invoice['invoice_number'] }}</title>
+    <title>Hóa Đơn Hoàn Hàng #{{ $return['return_code'] }}</title>
     <style>
         * {
             margin: 0;
@@ -25,7 +25,7 @@
 
         .container {
             width: 95%;
-            padding: 20px;
+            padding: 20px; /* Thêm padding để thụt vào */
             min-height: 100vh;
             background: white;
         }
@@ -76,8 +76,8 @@
             padding-left: 15px;
         }
 
-        .invoice-badge {
-            background-color: #1976d2;
+        .return-badge {
+            background-color: #d32f2f;
             color: white;
             padding: 10px 16px;
             font-size: 14px;
@@ -85,7 +85,7 @@
             margin-bottom: 10px;
             display: inline-block;
             text-transform: uppercase;
-            border-radius: 4px;
+            border-radius: 4px; /* Thêm bo góc nhẹ */
         }
 
         .invoice-meta p {
@@ -100,11 +100,42 @@
         }
 
         /* Status Colors */
-        .status-draft { color: #757575; font-weight: bold; }
         .status-pending { color: #f57f17; font-weight: bold; }
-        .status-paid { color: #2e7d32; font-weight: bold; }
-        .status-overdue { color: #d32f2f; font-weight: bold; }
-        .status-cancelled { color: #d32f2f; font-weight: bold; }
+        .status-approved { color: #2e7d32; font-weight: bold; }
+        .status-completed { color: #1976d2; font-weight: bold; }
+        .status-rejected { color: #d32f2f; font-weight: bold; }
+
+        /* Original Invoice Info */
+        .original-invoice-info {
+            background-color: #fff8e1;
+            border-left: 4px solid #d4a574;
+            padding: 16px;
+            margin-bottom: 18px;
+            width: 100%;
+            border-radius: 0 6px 6px 0; /* Bo góc phải */
+        }
+
+        .original-invoice-info h3 {
+            color: #5d4037;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .original-invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .original-invoice-table td {
+            border: none;
+            padding: 2px 8px 2px 0;
+            vertical-align: top;
+            font-size: 11px;
+            word-wrap: break-word;
+        }
 
         /* Info Sections */
         .info-section {
@@ -131,7 +162,7 @@
             background-color: #fafafa;
             margin-right: 12px;
             height: 110px;
-            border-radius: 6px;
+            border-radius: 6px; /* Bo góc */
         }
 
         .info-box h3 {
@@ -166,7 +197,8 @@
             margin-bottom: 16px;
             text-align: center;
             text-transform: uppercase;
-            border-radius: 6px;
+
+            border-radius: 6px; /* Bo góc */
         }
 
         /* Table */
@@ -175,8 +207,8 @@
             border-collapse: collapse;
             margin-bottom: 18px;
             table-layout: fixed;
-            border-radius: 6px;
-            overflow: hidden;
+            border-radius: 6px; /* Bo góc table */
+            overflow: hidden; /* Để border-radius hiệu quả */
         }
 
         table.data-table th {
@@ -206,12 +238,11 @@
 
         /* Column widths */
         .col-stt { width: 6%; }
-        .col-product { width: 32%; }
-        .col-qty { width: 10%; }
-        .col-unit { width: 8%; }
+        .col-product { width: 36%; }
+        .col-qty { width: 12%; }
         .col-price { width: 15%; }
-        .col-discount { width: 12%; }
-        .col-total { width: 17%; }
+        .col-total { width: 15%; }
+        .col-condition { width: 16%; }
 
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -226,7 +257,7 @@
         }
 
         .total-section {
-            width: 380px;
+            width: 380px; /* Giảm một chút để cân đối với padding */
             margin: 0 auto;
         }
 
@@ -234,7 +265,7 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            border-radius: 6px;
+            border-radius: 6px; /* Bo góc */
             overflow: hidden;
         }
 
@@ -266,53 +297,26 @@
             font-size: 14px;
         }
 
-        /* Payment Info Section */
-        .payment-info {
+        /* Reason Section */
+        .reason-section {
             margin-top: 22px;
             margin-bottom: 22px;
             padding: 16px;
-            border: 2px solid #4caf50;
-            background-color: #f1f8e9;
-            border-radius: 6px;
+            border: 2px solid #ef5350;
+            background-color: #ffebee;
+            border-radius: 6px; /* Bo góc */
         }
 
-        .payment-info h3 {
-            color: #2e7d32;
+        .reason-section h3 {
+            color: #c62828;
             margin-bottom: 8px;
             font-size: 14px;
             font-weight: bold;
             text-transform: uppercase;
         }
 
-        .payment-info p {
-            color: #1b5e20;
-            font-weight: normal;
-            line-height: 1.4;
-            font-size: 11px;
-            word-wrap: break-word;
-            margin-bottom: 4px;
-        }
-
-        /* Notes Section */
-        .notes-section {
-            margin-top: 22px;
-            margin-bottom: 22px;
-            padding: 16px;
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
-            border-radius: 6px;
-        }
-
-        .notes-section h3 {
-            color: #5d4037;
-            margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .notes-section p {
-            color: #6d4c41;
+        .reason-section p {
+            color: #6d1b7b;
             font-weight: normal;
             line-height: 1.4;
             font-size: 11px;
@@ -338,10 +342,10 @@
             text-align: center;
             padding: 16px 8px;
             vertical-align: top;
-            width: 50%;
+            width: 33.33%;
             height: 90px;
             word-wrap: break-word;
-            border-radius: 6px;
+            border-radius: 6px; /* Bo góc nhẹ */
         }
 
         .signature-table strong {
@@ -396,23 +400,7 @@
             color: #5d4037;
             font-weight: normal;
             font-size: 11px;
-            border-radius: 6px;
-        }
-
-        /* Due Date Alert */
-        .due-date-alert {
-            background-color: #fff3e0;
-            border-left: 4px solid #ff9800;
-            padding: 12px;
-            margin-bottom: 18px;
-            border-radius: 0 6px 6px 0;
-        }
-
-        .due-date-alert p {
-            color: #e65100;
-            font-weight: bold;
-            margin: 0;
-            font-size: 12px;
+            border-radius: 6px; /* Bo góc */
         }
     </style>
 </head>
@@ -427,26 +415,25 @@
                     <p>{{ $company['address'] }}</p>
                     <p>SĐT: {{ $company['phone'] }}</p>
                     <p>Email: {{ $company['email'] }}</p>
-                    @if(isset($company['tax_code']))
-                        <p>Mã số thuế: {{ $company['tax_code'] }}</p>
-                    @endif
                 </td>
                 <td class="invoice-info">
-                    <div class="invoice-badge">HÓA ĐƠN BÁN HÀNG</div>
+                    <div class="return-badge">HÓA ĐƠN HOÀN HÀNG</div>
                     <div class="invoice-meta">
-                        <p><strong>Số HĐ:</strong> {{ $invoice['invoice_number'] }}</p>
-                        <p><strong>Ngày lập:</strong> {{ $invoice['invoice_date']->format('d/m/Y H:i') }}</p>
-                        <p><strong>Ngày đáo hạn:</strong> {{ $invoice['due_date']->format('d/m/Y') }}</p>
+                        <p><strong>Mã HĐ Hoàn:</strong> {{ $return['return_code'] }}</p>
+                        <p><strong>Ngày hoàn:</strong> {{ $return['return_date']->format('d/m/Y H:i') }}</p>
                         <p><strong>Trạng thái:</strong>
-                            @switch($invoice['status'])
+                            @switch($return['status'])
                                 @case('pending')
                                     <span class="status-pending">Chờ xử lý</span>
                                     @break
-                                @case('completed')
-                                    <span class="status-paid">Hoàn thành</span>
+                                @case('approved')
+                                    <span class="status-approved">Đã duyệt</span>
                                     @break
-                                @case('cancelled')
-                                    <span class="status-cancelled">Đã hủy</span>
+                                @case('completed')
+                                    <span class="status-completed">Hoàn tất</span>
+                                    @break
+                                @case('rejected')
+                                    <span class="status-rejected">Từ chối</span>
                                     @break
                             @endswitch
                         </p>
@@ -456,78 +443,70 @@
         </table>
     </div>
 
-    {{-- Due Date Alert --}}
-    @if($invoice['status'] == 'overdue' || ($invoice['status'] == 'pending' && $invoice['due_date']->diffInDays(now()) <= 3))
-        <div class="due-date-alert">
-            <p>
-                @if($invoice['status'] == 'overdue')
-                    ⚠️ HÓA ĐƠN ĐÃ QUÁ HẠN THANH TOÁN
-                @else
-                    ⏰ HÓA ĐƠN SẮP ĐẾN HẠN THANH TOÁN ({{ $invoice['due_date']->format('d/m/Y') }})
-                @endif
-            </p>
-        </div>
-    @endif
+    {{-- Thông tin hóa đơn gốc --}}
+    <div class="original-invoice-info">
+        <h3>Thông tin hóa đơn gốc</h3>
+        <table class="original-invoice-table">
+            <tr>
+                <td style="width: 50%;">
+                    <p><strong>Mã HĐ gốc:</strong> {{ $return['originalInvoice']['invoice_number'] ?? 'N/A' }}</p>
+                    <p><strong>Ngày lập:</strong> {{ $return['originalInvoice']['created_at']->format('d/m/Y') ?? 'N/A' }}</p>
+                </td>
+                <td style="width: 50%;">
+                    <p><strong>Khách hàng:</strong> {{ $return['originalInvoice']['customer_name'] ?? 'N/A' }}</p>
+                    <p><strong>Tổng tiền gốc:</strong> {{ number_format($return['originalInvoice']['total_amount'] ?? 0, 0, ',', '.') }} VNĐ</p>
+                </td>
+            </tr>
+        </table>
+    </div>
 
-    {{-- Thông tin khách hàng và người bán --}}
+    {{-- Thông tin xử lý --}}
     <div class="info-section">
         <table class="info-table">
             <tr>
                 <td>
                     <div class="info-box">
                         <h3>Thông tin khách hàng</h3>
-                        <p><strong>Tên:</strong> {{ $invoice['customer']['name'] ?? 'N/A' }}</p>
-                        <p><strong>SĐT:</strong> {{ $invoice['customer']['phone'] ?? 'N/A' }}</p>
-                        <p><strong>Địa chỉ:</strong> {{ $invoice['customer']['address'] ?? 'N/A' }}</p>
+                        <p><strong>Tên:</strong> {{ $return['originalInvoice']['customer_name'] ?? 'N/A' }}</p>
+                        <p><strong>SĐT:</strong> {{ $return['originalInvoice']['customer_phone'] ?? 'N/A' }}</p>
+                        <p><strong>Địa chỉ:</strong> {{ $return['originalInvoice']['customer_address'] ?? 'N/A' }}</p>
                     </div>
                 </td>
                 <td>
                     <div class="info-box" style="margin-right: 0;">
-                        <h3>Người lập hóa đơn</h3>
-                        <p><strong>Tên:</strong> {{ $invoice['createdBy']->name ?? 'N/A' }}</p>
-                        <p><strong>Chức vụ:</strong> {{ $invoice['createdBy']->position ?? 'Nhân viên bán hàng' }}</p>
+                        <h3>Người xử lý</h3>
+                        <p><strong>Tên:</strong> {{ $return['processedBy']->name ?? 'N/A' }}</p>
+                        <p><strong>Chức vụ:</strong> Nhân viên bán hàng</p>
+                        <p><strong>Ngày xử lý:</strong> {{ $return['created_at']->format('d/m/Y H:i') }}</p>
                     </div>
                 </td>
             </tr>
         </table>
     </div>
 
-    {{-- Chi tiết sản phẩm --}}
-    <div class="section-title">Chi tiết sản phẩm</div>
+    {{-- Chi tiết sản phẩm hoàn --}}
+    <div class="section-title">Chi tiết sản phẩm hoàn hàng</div>
 
     <table class="data-table">
         <thead>
         <tr>
             <th class="col-stt">STT</th>
             <th class="col-product">Tên sản phẩm</th>
-            <th class="col-qty">SL</th>
+            <th class="col-qty">SL hoàn</th>
             <th class="col-price">Đơn giá</th>
-            <th class="col-discount">Giảm giá</th>
             <th class="col-total">Thành tiền</th>
+            <th class="col-condition">Tình trạng</th>
         </tr>
         </thead>
         <tbody>
-        @foreach($invoice['invoiceItems'] as $index => $item)
+        @foreach($return['returnItems'] as $index => $item)
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
-                <td>
-                    {{ $item['product']['name'] ?? 'N/A' }}
-                    @if($item['product']['sku'])
-                        <br><small style="color: #666;">SKU: {{ $item['product']['sku'] }}</small>
-                    @endif
-                </td>
-                <td class="text-center">{{ $item['quantity'] }}</td>
+                <td>{{ $item['product']['name'] ?? 'N/A' }}</td>
+                <td class="text-center">{{ $item['quantity_returned'] }}</td>
                 <td class="text-right">{{ number_format($item['unit_price'], 0, ',', '.') }} VNĐ</td>
-                <td class="text-center">
-                    @if($item['discount_percent'] > 0)
-                        {{ $item['discount_percent'] }}%
-                    @elseif($item['discount_amount'] > 0)
-                        {{ number_format($item['discount_amount'], 0, ',', '.') }} VNĐ
-                    @else
-                        -
-                    @endif
-                </td>
                 <td class="text-right">{{ number_format($item['total_price'], 0, ',', '.') }} VNĐ</td>
+                <td class="text-center">{{ $item['item_condition'] ?? 'Bình thường' }}</td>
             </tr>
         @endforeach
         </tbody>
@@ -538,49 +517,47 @@
         <div class="total-section">
             <table class="total-table">
                 <tr>
-                    <td class="total-label">Tổng tiền hàng:</td>
-                    <td class="total-value">{{ number_format($invoice['subtotal'], 0, ',', '.') }} VNĐ</td>
+                    <td class="total-label">Tổng tiền hàng hoàn:</td>
+                    <td class="total-value">{{ number_format($return['total_return_amount'], 0, ',', '.') }} VNĐ</td>
                 </tr>
                 <tr>
-                    <td class="total-label">Tổng giảm giá:</td>
-                    <td class="total-value">{{ number_format($invoice['total_discount'], 0, ',', '.') }} VNĐ</td>
+                    <td class="total-label">Phí xử lý:</td>
+                    <td class="total-value">0 VNĐ</td>
                 </tr>
                 <tr class="final-row">
-                    <td>TỔNG CỘNG:</td>
-                    <td>{{ number_format($invoice['total_amount'], 0, ',', '.') }} VNĐ</td>
+                    <td>TỔNG TIỀN HOÀN:</td>
+                    <td>{{ number_format($return['total_return_amount'], 0, ',', '.') }} VNĐ</td>
                 </tr>
             </table>
         </div>
     </div>
 
-    {{-- Thông tin thanh toán --}}
-    <div class="payment-info">
-        <h3>Thông tin thanh toán</h3>
-        <p><strong>Phương thức:</strong> {{ $invoice['payment_method'] ?? 'Tiền mặt' }}</p>
+    {{-- Lý do hoàn hàng --}}
+    <div class="reason-section">
+        <h3>Lý do hoàn hàng</h3>
+        <p>{{ $return['reason'] }}</p>
     </div>
-
-    {{-- Ghi chú --}}
-    @if($invoice['notes'])
-        <div class="notes-section">
-            <h3>Ghi chú</h3>
-            <p>{{ $invoice['notes'] }}</p>
-        </div>
-    @endif
 
     {{-- Chữ ký --}}
     <div class="signatures">
         <table class="signature-table">
             <tr>
                 <td>
-                    <strong>Người mua hàng</strong>
+                    <strong>Khách hàng</strong>
                     <div class="signature-line">
                         (Ký và ghi rõ họ tên)
                     </div>
                 </td>
                 <td>
-                    <strong>Người bán hàng</strong>
+                    <strong>Nhân viên xử lý</strong>
                     <div class="signature-line">
-                        {{ $invoice['createdBy']->name ?? '' }}
+                        {{ $return['processedBy']->name ?? '' }}
+                    </div>
+                </td>
+                <td>
+                    <strong>Thủ kho</strong>
+                    <div class="signature-line">
+                        (Ký và ghi rõ họ tên)
                     </div>
                 </td>
             </tr>
@@ -589,13 +566,14 @@
 
     {{-- Footer --}}
     <div class="footer">
-        <p><strong>Điều khoản và điều kiện:</strong></p>
+        <p><strong>Lưu ý quan trọng:</strong></p>
         <ul>
-            <li>Hóa đơn này có giá trị pháp lý</li>
-            <li>Mọi thắc mắc xin liên hệ: {{ $company['phone'] }}</li>
+            <li>Khách hàng vui lòng kiểm tra kỹ thông tin trước khi ký xác nhận</li>
+            <li>Hóa đơn hoàn hàng này có giá trị pháp lý</li>
+            <li>Liên hệ {{ $company['phone'] }} để được hỗ trợ thêm</li>
         </ul>
         <div class="thanks">
-            Cảm ơn quý khách đã tin tưởng và sử dụng dịch vụ của chúng tôi!
+            Cảm ơn quý khách đã sử dụng dịch vụ của chúng tôi!
         </div>
     </div>
 </div>

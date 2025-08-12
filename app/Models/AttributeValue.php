@@ -19,7 +19,7 @@ class AttributeValue extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($attributeValue) {
             if (empty($attributeValue->slug)) {
                 $attributeValue->slug = Str::slug($attributeValue->value);
@@ -32,4 +32,5 @@ class AttributeValue extends Model
     {
         return $this->belongsTo(Attribute::class);
     }
+
 }

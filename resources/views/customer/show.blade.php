@@ -76,7 +76,8 @@
 
 @section('content')
     <div class="container-fluid">
-        {{-- Customer Header --}}
+
+
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -123,6 +124,11 @@
                                     <button class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown">
                                         <i class="fas fa-cog"></i>
                                     </button>
+                                    <div class="d-flex">
+                                        <a href="{{ route('customers.index') }}" class="btn btn-light">
+                                            <i class="fas fa-arrow-left me-2"></i>Quay lại
+                                        </a>
+                                    </div>
                                     <ul class="dropdown-menu">
                                         <li><a class="dropdown-item" href="#" onclick="updateTier()">
                                                 <i class="fas fa-crown me-2"></i>Cập nhật tier

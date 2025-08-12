@@ -93,7 +93,12 @@ function initializeBarcodeScanner() {
 
 function isInputElementFocused() {
     const focusedElement = document.activeElement;
-    return focusedElement && (focusedElement.tagName === 'INPUT' || focusedElement.tagName === 'TEXTAREA' || focusedElement.tagName === 'SELECT' || focusedElement.contentEditable === 'true');
+    return focusedElement && (
+        focusedElement.tagName === 'INPUT' ||
+        focusedElement.tagName === 'TEXTAREA' ||
+        focusedElement.tagName === 'SELECT' ||
+        focusedElement.contentEditable === 'true'
+    );
 }
 
 function processBarcodeInput(events) {
@@ -143,9 +148,7 @@ function handleBarcodeScanned(barcode) {
     if (!barcodeListenerActive) return;
 
     console.log('Barcode scanned:', barcode);
-
     showAlert(`Máy quét: ${barcode}`, 'success');
-
     searchProductByCodeAndAddToCart(barcode);
 
     const scannerIcon = document.getElementById('scanner-icon');
@@ -159,32 +162,59 @@ function handleBarcodeScanned(barcode) {
     }
 }
 
+// ✅ FIXED: Updated API call to match new structure
 function searchProductByCodeAndAddToCart(code) {
     showAlert(`🔍 Đang tìm sản phẩm: ${code}`, 'info');
 
-    fetch(`/api/products/search?q=${encodeURIComponent(code)}`)
+    fetch(`/api/products/by-code?code=${encodeURIComponent(code)}`)
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.data && data.data.length > 0) {
-                const product = data.data[0];
+            console.log('Product search response:', data);
 
-                // Thêm thẳng vào giỏ hàng
-                const productForCart = {
-                    id: product.product_id,
-                    variant_id: product.id,
-                    name: product.name,
-                    variant_name: product.variant_name,
-                    sku: product.sku,
-                    price: parseFloat(product.price),
-                    sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
-                    final_price: parseFloat(product.final_price || product.price),
-                    stock: parseInt(product.stock),
-                    thumbnail: product.thumbnail
-                };
+            if (data.success && data.data) {
+                if (data.type === 'variant') {
+                    // Single variant found
+                    const variant = data.data;
+                    const productForCart = {
+                        id: variant.product_id,
+                        variant_id: variant.id,
+                        name: variant.name,
+                        variant_name: variant.name,
+                        sku: variant.sku,
+                        price: parseFloat(variant.price),
+                        final_price: parseFloat(variant.price),
+                        stock_quantity: parseInt(variant.stock_quantity),
+                        thumbnail: variant.thumbnail
+                    };
 
-                addToCart(productForCart);
-                showAlert(`✅ Đã thêm "${product.variant_name || product.name}" vào giỏ hàng`, 'success');
+                    addToCart(productForCart);
+                    showAlert(`✅ Đã thêm "${variant.name}" vào giỏ hàng`, 'success');
 
+                } else if (data.type === 'product') {
+                    // Simple product found
+                    const product = data.data;
+                    const productForCart = {
+                        id: product.id,
+                        variant_id: null,
+                        name: product.name,
+                        variant_name: product.name,
+                        sku: product.sku,
+                        price: parseFloat(product.price),
+                        final_price: parseFloat(product.price),
+                        stock_quantity: parseInt(product.stock_quantity),
+                        thumbnail: product.thumbnail
+                    };
+
+                    addToCart(productForCart);
+                    showAlert(`✅ Đã thêm "${product.name}" vào giỏ hàng`, 'success');
+
+                } else if (data.type === 'product_with_variants') {
+                    // Product with multiple variants - show selection modal
+                    showVariantSelectionModal(data.data);
+
+                } else {
+                    showAlert(`❓ Không xác định được loại sản phẩm với mã: ${code}`, 'warning');
+                }
             } else {
                 showAlert(`❌ Không tìm thấy sản phẩm với mã: ${code}`, 'warning');
             }
@@ -193,6 +223,83 @@ function searchProductByCodeAndAddToCart(code) {
             console.error('Search error:', error);
             showAlert(`❌ Lỗi khi tìm kiếm sản phẩm: ${code}`, 'danger');
         });
+}
+
+// ✅ NEW: Show variant selection modal
+function showVariantSelectionModal(productData) {
+    const modalHtml = `
+        <div class="modal fade" id="variantSelectionModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chọn biến thể sản phẩm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6>${productData.name}</h6>
+                        <p class="text-muted">SKU: ${productData.sku}</p>
+                        <div class="row">
+                            ${productData.variants.map(variant => `
+                                <div class="col-12 mb-2">
+                                    <button type="button" class="btn btn-outline-primary w-100 text-start"
+                                            onclick="selectVariantFromModal(${variant.id}, '${productData.name}', '${variant.sku}', ${variant.price}, ${variant.stock_quantity})">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>SKU: ${variant.sku}</strong><br>
+                                                <small class="text-muted">
+                                                    ${variant.attributes.map(attr => `${attr.attribute_name}: ${attr.value}`).join(', ')}
+                                                </small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="fw-bold">${formatCurrency(variant.price)}đ</div>
+                                                <small class="badge ${variant.stock_quantity > 0 ? 'bg-success' : 'bg-danger'}">
+                                                    ${variant.stock_quantity > 0 ? `Còn ${variant.stock_quantity}` : 'Hết hàng'}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('variantSelectionModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('variantSelectionModal'));
+    modal.show();
+}
+
+// ✅ NEW: Select variant from modal
+function selectVariantFromModal(variantId, productName, sku, price, stockQuantity) {
+    const productForCart = {
+        id: null, // Will be set by backend
+        variant_id: variantId,
+        name: productName,
+        variant_name: productName,
+        sku: sku,
+        price: parseFloat(price),
+        final_price: parseFloat(price),
+        stock_quantity: parseInt(stockQuantity),
+        thumbnail: null
+    };
+
+    addToCart(productForCart);
+    showAlert(`✅ Đã thêm "${productName}" vào giỏ hàng`, 'success');
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('variantSelectionModal'));
+    if (modal) {
+        modal.hide();
+    }
 }
 
 // ========================================
@@ -262,7 +369,6 @@ function performSearch(query) {
         })
         .then(data => {
             console.log('Search results:', data);
-            // Sửa từ data.products thành data.data
             if (data.success && data.data) {
                 displaySearchResults(data.data);
             } else {
@@ -302,19 +408,12 @@ function displaySearchResults(results) {
     } else {
         let html = '';
         results.forEach((product, index) => {
-            const stockStatus = product.stock > 10 ? 'success' : product.stock > 0 ? 'warning' : 'danger';
-            const stockText = product.stock > 10 ? 'Còn hàng' : product.stock > 0 ? `Còn ${product.stock}` : 'Hết hàng';
+            const stockStatus = product.stock_quantity > 10 ? 'success' : product.stock_quantity > 0 ? 'warning' : 'danger';
+            const stockText = product.stock_quantity > 10 ? 'Còn hàng' : product.stock_quantity > 0 ? `Còn ${product.stock_quantity}` : 'Hết hàng';
 
             let priceDisplay;
             try {
-                if (product.sale_price && parseFloat(product.sale_price) > 0) {
-                    priceDisplay = `
-                        <small class="text-decoration-line-through text-muted">${formatCurrency(product.price)}</small><br>
-                        <strong class="text-danger">${formatCurrency(product.final_price)}</strong>
-                    `;
-                } else {
-                    priceDisplay = `<strong class="text-primary">${formatCurrency(product.final_price || product.price)}</strong>`;
-                }
+                priceDisplay = `<strong class="text-primary">${formatCurrency(product.price)}</strong>`;
             } catch (e) {
                 priceDisplay = '<strong class="text-primary">Liên hệ</strong>';
             }
@@ -322,10 +421,9 @@ function displaySearchResults(results) {
             const displayName = product.variant_name || product.name || 'Sản phẩm không tên';
             const safeName = displayName.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-            // Smart image handling - check if thumbnail exists first
+
             let imageHTML;
             if (product.thumbnail && product.thumbnail.trim()) {
-                // Try to load actual thumbnail first, fallback to no-image on error
                 imageHTML = `<img src="${product.thumbnail}"
                                  class="rounded"
                                  width="50"
@@ -334,7 +432,6 @@ function displaySearchResults(results) {
                                  onerror="handleImageError(this)"
                                  alt="${safeName}">`;
             } else {
-                // No thumbnail provided, use no-image directly
                 imageHTML = `<img src="${noImageUrl}"
                                  class="rounded"
                                  width="50"
@@ -344,7 +441,7 @@ function displaySearchResults(results) {
             }
 
             html += `
-                <div class="dropdown-item search-result-item ${product.stock <= 0 ? 'disabled' : ''}"
+                <div class="dropdown-item search-result-item ${product.stock_quantity <= 0 ? 'disabled' : ''}"
                      data-index="${index}">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0 me-3">
@@ -353,7 +450,7 @@ function displaySearchResults(results) {
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="me-3" style="min-width: 0;">
-                                    <h6 class="mb-1 fw-bold text-truncate"
+                                    <h6 class="mb-1 fw-bold"
                                        style="max-width: 250px;"
                                        title="${safeName}">
                                         ${displayName}
@@ -361,7 +458,7 @@ function displaySearchResults(results) {
                                     <div class="text-muted small">
                                         <i class="fas fa-barcode me-1"></i>
                                         <span class="fw-medium">${product.sku || 'N/A'}</span>
-                                        ${product.categories ? `<span class="text-secondary"> • ${product.categories}</span>` : ''}
+                                        ${product.category ? `<span class="text-secondary"> • ${product.category}</span>` : ''}
                                     </div>
                                     ${product.attributes ? `<div class="mt-1">
                                             <small class="badge bg-info bg-opacity-25 text-info">
@@ -387,21 +484,20 @@ function displaySearchResults(results) {
 
         resultsContainer.innerHTML = html;
 
-        // Event handlers...
+        // Event handlers
         results.forEach((product, index) => {
             const element = resultsContainer.querySelector(`[data-index="${index}"]`);
             if (element && !element.classList.contains('disabled')) {
                 element.addEventListener('click', function () {
                     const productForCart = {
-                        id: product.product_id,
-                        variant_id: product.id,
+                        id: product.product_id || product.id,
+                        variant_id: product.type === 'variant' ? product.id : null,
                         name: product.name,
-                        variant_name: product.variant_name,
+                        variant_name: product.variant_name || product.name,
                         sku: product.sku,
                         price: parseFloat(product.price),
-                        sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
-                        final_price: parseFloat(product.final_price || product.price),
-                        stock: parseInt(product.stock),
+                        final_price: parseFloat(product.price),
+                        stock_quantity: parseInt(product.stock_quantity), // ✅ FIXED: Use stock_quantity
                         thumbnail: product.thumbnail
                     };
 
@@ -424,9 +520,7 @@ function showSearchResults() {
     const resultsContainer = document.getElementById('search-results');
     if (resultsContainer) {
         resultsContainer.style.display = 'block';
-
         resultsContainer.scrollTop = 0;
-
         resultsContainer.style.zIndex = '1200';
     }
 }
@@ -447,9 +541,24 @@ function addToCart(product) {
         return;
     }
 
-    const existingItem = cart.find(item => (item.variant_id && item.variant_id === product.variant_id) || (!item.variant_id && item.product_id === product.id));
+    // ✅ FIXED: Check stock before adding
+    if (product.stock_quantity <= 0) {
+        showAlert('Sản phẩm đã hết hàng', 'warning');
+        return;
+    }
+
+    const existingItem = cart.find(item =>
+        (item.variant_id && item.variant_id === product.variant_id) ||
+        (!item.variant_id && item.product_id === product.id)
+    );
 
     if (existingItem) {
+        // ✅ FIXED: Check stock when increasing quantity
+        if (existingItem.quantity >= product.stock_quantity) {
+            showAlert(`Không thể thêm. Chỉ còn ${product.stock_quantity} sản phẩm`, 'warning');
+            return;
+        }
+
         existingItem.quantity += 1;
         existingItem.line_total = existingItem.quantity * existingItem.unit_price;
     } else {
@@ -462,6 +571,7 @@ function addToCart(product) {
             unit_price: product.final_price || product.price,
             quantity: 1,
             line_total: product.final_price || product.price,
+            max_stock: product.stock_quantity, // ✅ ADDED: Track max stock for validation
             thumbnail: product.thumbnail
         };
 
@@ -499,7 +609,7 @@ function updateCartDisplay() {
     cart.forEach(item => {
         subtotal += item.line_total;
 
-        // Smart image handling cho cart
+        // Smart image handling
         let thumbnailHTML;
         if (item.thumbnail && item.thumbnail.trim()) {
             thumbnailHTML = `<img src="${item.thumbnail}"
@@ -526,21 +636,26 @@ function updateCartDisplay() {
                     <div class="flex-grow-1">
                         <h6 class="mb-1">${safeName}</h6>
                         <small class="text-muted">SKU: ${safeSku}</small>
+                        ${item.max_stock ? `<small class="text-info d-block">Tồn kho: ${item.max_stock}</small>` : ''}
                         <div class="mt-2">
                             <span class="fw-bold text-primary">${formatCurrency(item.unit_price)}</span>
                             <span class="text-muted">x ${item.quantity}</span>
                         </div>
                     </div>
-            <div class="flex-shrink-0 d-flex flex-column align-items-end">
-                <div class="btn-group btn-group-sm mb-2" role="group">
-                    <button type="button" class="btn btn-outline-secondary" onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
-                    <span class="btn btn-outline-secondary px-3">${item.quantity}</span>
-                    <button type="button" class="btn btn-outline-secondary" onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
+                    <div class="flex-shrink-0 d-flex flex-column align-items-end">
+                        <div class="btn-group btn-group-sm mb-2" role="group">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                            <span class="btn btn-outline-secondary px-3">${item.quantity}</span>
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="updateQuantity(${item.id}, ${item.quantity + 1})"
+                                    ${item.max_stock && item.quantity >= item.max_stock ? 'disabled' : ''}>+</button>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="removeFromCart(${item.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="text-end">
                     <strong>${formatCurrency(item.line_total)}</strong>
@@ -551,79 +666,75 @@ function updateCartDisplay() {
 
     cartItemsContainer.innerHTML = html;
 
-    // Rest of the function remains the same...
+    // Update cart summary
     if (cartSummary) {
         cartSummary.style.display = 'block';
-        cartSummary.innerHTML = `
-            <div class="border-top pt-3">
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Tạm tính (${cart.length} sản phẩm):</span>
-                    <span class="fw-bold">${formatCurrency(subtotal)}</span>
-                </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Giảm giá:</span>
-                    <span>0đ</span>
-                </div>
-                <hr>
-                <div class="d-flex justify-content-between">
-                    <span class="fw-bold fs-5">Tổng cộng:</span>
-                    <span class="fw-bold fs-5 text-primary">${formatCurrency(subtotal)}</span>
-                </div>
-            </div>
-        `;
+        const subtotalElement = document.getElementById('subtotal');
+        const grandTotalElement = document.getElementById('grand-total');
+
+        if (subtotalElement) subtotalElement.textContent = formatCurrency(subtotal);
+        if (grandTotalElement) grandTotalElement.textContent = formatCurrency(subtotal);
     }
 
     if (confirmPaymentBtn) {
-        confirmPaymentBtn.disabled = false;
+        confirmPaymentBtn.disabled = cart.length === 0;
     }
 
     updateCartCount(cart.length);
 }
 
-function updateQuantity(cartId, newQuantity) {
+function updateQuantity(cartItemId, newQuantity) {
+    const item = cart.find(cartItem => cartItem.id === cartItemId);
+    if (!item) return;
+
     if (newQuantity <= 0) {
-        removeFromCart(cartId);
+        removeFromCart(cartItemId);
         return;
     }
 
-    const item = cart.find(item => item.id === cartId);
-    if (item) {
-        item.quantity = newQuantity;
-        item.line_total = item.quantity * item.unit_price;
-        updateCartDisplay();
+    // ✅ FIXED: Check stock limit when increasing quantity
+    if (item.max_stock && newQuantity > item.max_stock) {
+        showAlert(`Không thể tăng số lượng. Chỉ còn ${item.max_stock} sản phẩm`, 'warning');
+        return;
     }
-}
 
-function removeFromCart(cartId) {
-    cart = cart.filter(item => item.id !== cartId);
+    item.quantity = newQuantity;
+    item.line_total = item.quantity * item.unit_price;
+
     updateCartDisplay();
 }
 
-function clearCart() {
-    if (cart.length === 0) return;
+function removeFromCart(cartItemId) {
+    cart = cart.filter(item => item.id !== cartItemId);
+    updateCartDisplay();
+    showAlert('Đã xóa sản phẩm khỏi giỏ hàng', 'info');
+}
 
-    if (confirm('Bạn có chắc chắn muốn xóa tất cả sản phẩm?')) {
+function clearCart() {
+    if (cart.length === 0) {
+        showAlert('Giỏ hàng đã trống', 'info');
+        return;
+    }
+
+    if (confirm('Bạn có chắc muốn xóa tất cả sản phẩm trong giỏ hàng?')) {
         cart = [];
         updateCartDisplay();
-        showAlert('Đã xóa tất cả sản phẩm', 'info');
+        showAlert('Đã xóa tất cả sản phẩm', 'success');
     }
 }
 
 function updateCartCount(count) {
-    const cartCountBadge = document.getElementById('cart-count');
-    if (cartCountBadge) {
-        cartCountBadge.textContent = count;
+    const cartCountElement = document.getElementById('cart-count');
+    if (cartCountElement) {
+        cartCountElement.textContent = count;
+        cartCountElement.style.display = count > 0 ? 'inline' : 'none';
     }
 }
 
 // ========================================
-// PAYMENT PROCESSING
+// ORDER PROCESSING
 // ========================================
-function confirmPayment() {
-    if (currentMode === 'refund') {
-        return confirmRefund();
-    }
-
+function completeOrder() {
     if (cart.length === 0) {
         showAlert('Giỏ hàng trống', 'warning');
         return;
@@ -637,731 +748,462 @@ function confirmPayment() {
 
     const orderData = {
         items: cart.map(item => ({
-            product_id: item.product_id,
-            variant_id: item.variant_id,
+            product_id: item.product_id || null,
+            variant_id: item.variant_id || null,
             quantity: item.quantity,
             unit_price: item.unit_price
-        })), payment_method: paymentMethod
+        })),
+        payment_method: paymentMethod
     };
 
+    // Show loading state
+    const completeBtn = document.getElementById('complete-order');
+    const originalText = completeBtn.textContent;
+    completeBtn.disabled = true;
+    completeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...';
+
     fetch('/pos/create-order', {
-        method: 'POST', headers: {
+        method: 'POST',
+        headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }, body: JSON.stringify(orderData)
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(orderData)
     })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 currentOrder = data.data;
 
-                if (data.data.payment_method === 'vnpay') {
-                    processVNPayPayment(data.data);
+                if (paymentMethod === 'vnpay') {
+                    // Handle VNPay QR
+                    if (data.data.vnpay_qr) {
+                        showVNPayModal(data.data.vnpay_qr, currentOrder);
+                    } else {
+                        showAlert('Lỗi tạo QR VNPay', 'danger');
+                    }
                 } else {
-                    showCashPaymentInterface();
+                    // Show payment confirmation for cash
+                    showPaymentConfirmation(currentOrder);
                 }
             } else {
-                showAlert(data.message, 'danger');
+                showAlert(data.message || 'Lỗi tạo đơn hàng', 'danger');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showAlert('Có lỗi xảy ra khi tạo đơn hàng', 'danger');
+            console.error('Order creation error:', error);
+            showAlert('Lỗi kết nối. Vui lòng thử lại.', 'danger');
+        })
+        .finally(() => {
+            completeBtn.disabled = false;
+            completeBtn.textContent = originalText;
         });
 }
 
-function showCashPaymentInterface() {
-    showAlert('Đơn hàng đã được tạo thành công!', 'success');
-    document.getElementById('confirm-payment').style.display = 'none';
-    document.getElementById('complete-order').style.display = 'block';
-}
-
-function completeOrder() {
+function confirmPayment() {
     if (!currentOrder) {
-        showAlert('Không có đơn hàng để hoàn tất', 'warning');
+        showAlert('Không có đơn hàng để xác nhận', 'warning');
         return;
     }
 
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
 
-    fetch(`/pos/confirm-payment/${currentOrder.order_id}`, {
-        method: 'POST', headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }, body: JSON.stringify({
-            payment_method: paymentMethod
+    if (paymentMethod === 'cash_at_counter') {
+        // Process cash payment
+        fetch(`/pos/confirm-payment/${currentOrder.order_id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                payment_method: 'cash_at_counter'
+            })
         })
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert('Thanh toán hoàn tất!', 'success');
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Thanh toán thành công!', 'success');
 
-                currentOrder = null;
-                cart = [];
-                updateCartDisplay();
-                document.getElementById('confirm-payment').style.display = 'block';
-                document.getElementById('complete-order').style.display = 'none';
+                    // Reset cart and UI
+                    cart = [];
+                    currentOrder = null;
+                    updateCartDisplay();
+                    hidePaymentModal();
 
-                if (data.data.invoice_url) {
-                    setTimeout(() => {
-                        if (confirm('Bạn có muốn in hóa đơn không?')) {
-                            window.open(data.data.invoice_url, '_blank');
-                        }
-                    }, 1000);
+                    // Open invoice
+                    if (data.data.invoice_url) {
+                        window.open(data.data.invoice_url, '_blank');
+                    }
+                } else {
+                    showAlert(data.message || 'Lỗi xác nhận thanh toán', 'danger');
                 }
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Có lỗi xảy ra khi xác nhận thanh toán', 'danger');
-        });
+            })
+            .catch(error => {
+                console.error('Payment confirmation error:', error);
+                showAlert('Lỗi xác nhận thanh toán', 'danger');
+            });
+    }
+}
+
+function showPaymentConfirmation(orderData) {
+    const modal = document.getElementById('paymentConfirmationModal');
+    if (modal) {
+        document.getElementById('order-code').textContent = orderData.order_code;
+        document.getElementById('order-total').textContent = formatCurrency(orderData.total);
+
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+    }
+}
+
+function hidePaymentModal() {
+    const modal = document.getElementById('paymentConfirmationModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
+    }
 }
 
 // ========================================
-// VNPAY PAYMENT PROCESSING
+// VNPAY INTEGRATION
 // ========================================
-function processVNPayPayment(orderData) {
-    showVNPayQRModal(orderData.vnpay_qr);
-}
+function showVNPayModal(qrData, orderData) {
+    const modal = document.getElementById('vnpayModal');
+    if (!modal) return;
 
-function showVNPayQRModal(qrData) {
-    const modalHtml = `
-    <div class="modal fade" id="vnpayQRModal" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">
-                        <i class="fas fa-qrcode me-2"></i>
-                        Thanh toán VNPay
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" onclick="cancelVNPayPayment()"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <div class="row justify-content-center">
-                        <div class="col-md-6">
-                            <h6>Thông tin thanh toán</h6>
-                            <div class="card">
-                                <div class="card-body">
-                                    <div class="mb-2">
-                                        <strong>Số tiền:</strong><br>
-                                        <span class="h4 text-primary">${formatCurrency(qrData.amount)}</span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Mã giao dịch:</strong><br>
-                                        <code>${qrData.txn_ref}</code>
-                                    </div>
-                                    <div class="alert alert-info small">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        Thanh toán qua link thanh toán VNPay
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="openVNPayWindow('${qrData.qr_url}')">
-                        <i class="fas fa-external-link-alt me-2"></i>
-                        Mở cửa sổ thanh toán
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="switchToCash()">
-                        <i class="fas fa-money-bill me-2"></i>
-                        Chuyển sang tiền mặt
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="cancelVNPayPayment()">
-                        Hủy
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-`;
+    // Update modal content
+    document.getElementById('vnpay-order-code').textContent = orderData.order_code;
+    document.getElementById('vnpay-amount').textContent = formatCurrency(orderData.total);
 
-
-    const existingModal = document.getElementById('vnpayQRModal');
-    if (existingModal) {
-        existingModal.remove();
+    const qrContainer = document.getElementById('vnpay-qr-code');
+    if (qrContainer && qrData.qr_code_url) {
+        qrContainer.innerHTML = `
+            <img src="${qrData.qr_code_url}"
+                 alt="VNPay QR Code"
+                 class="img-fluid"
+                 style="max-width: 200px;">
+        `;
     }
 
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    const modal = new bootstrap.Modal(document.getElementById('vnpayQRModal'));
-    modal.show();
+    // Show modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
 
-    openVNPayWindow(qrData.qr_url);
+    // Start checking payment status
+    startPaymentStatusCheck(orderData.order_id);
 }
 
-function openVNPayWindow(paymentUrl) {
-    // Đóng popup cũ nếu có
-    if (vnpayPopupWindow && !vnpayPopupWindow.closed) {
-        vnpayPopupWindow.close();
-    }
-
-    // Clear interval cũ nếu có
+function startPaymentStatusCheck(orderId) {
     if (paymentCheckInterval) {
         clearInterval(paymentCheckInterval);
-        paymentCheckInterval = null;
     }
 
-    // Tính toán vị trí popup ở giữa màn hình
-    const width = 800;
-    const height = 700;
-    const left = (window.screen.width / 2) - (width / 2);
-    const top = (window.screen.height / 2) - (height / 2);
-
-    const windowFeatures = `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes,status=yes,toolbar=no,menubar=no`;
-
-    // Mở popup với VNPay URL
-    vnpayPopupWindow = window.open(paymentUrl, 'vnpay_payment', windowFeatures);
-
-    // Kiểm tra popup có bị block không
-    if (!vnpayPopupWindow || vnpayPopupWindow.closed || typeof vnpayPopupWindow.closed == 'undefined') {
-        showAlert('Popup bị chặn! Vui lòng cho phép popup cho trang này và thử lại.', 'warning');
-        return;
-    }
-
-    // Focus popup window
-    vnpayPopupWindow.focus();
-
-    // Bắt đầu monitor popup status
-    startPopupMonitoring();
-
-    showAlert('Đã mở cửa sổ thanh toán VNPay. Vui lòng hoàn tất thanh toán.', 'info');
-}
-
-function startPopupMonitoring() {
     paymentCheckInterval = setInterval(() => {
-        // Kiểm tra popup đã đóng chưa
-        if (!vnpayPopupWindow || vnpayPopupWindow.closed) {
-            clearInterval(paymentCheckInterval);
-            paymentCheckInterval = null;
-
-            // Popup đã đóng, check payment status
-            handlePopupClosed();
-        }
-    }, POPUP_CHECK_INTERVAL);
+        checkPaymentStatus(orderId);
+    }, 3000); // Check every 3 seconds
 }
 
-function handlePopupClosed() {
-    console.log('VNPay popup window closed, checking payment status...');
-
-    if (!currentOrder || !currentOrder.order_id) {
-        showAlert('Không tìm thấy thông tin đơn hàng để kiểm tra.', 'warning');
-        return;
-    }
-
-    // Hiển thị loading state
-    showAlert('🔍 Đang kiểm tra kết quả thanh toán...', 'info');
-
-    // Gọi API check payment status
-    checkVNPayPaymentStatus(currentOrder.order_id);
-}
-
-function checkVNPayPaymentStatus(orderId) {
-    fetch(`/pos/check-payment-status/${orderId}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
+function checkPaymentStatus(orderId) {
+    fetch(`/pos/payment-status/${orderId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                if (data.payment_status === 'paid' || data.payment_status === 'completed') {
-                    // Thanh toán thành công
+                if (data.payment_status === 'paid') {
+                    clearInterval(paymentCheckInterval);
                     handlePaymentSuccess(data);
-                } else if (data.payment_status === 'pending') {
-                    // Thanh toán đang pending, có thể check lại
-                    handlePaymentPending();
-                } else {
-                    // Thanh toán thất bại hoặc cancelled
-                    handlePaymentFailure();
                 }
-            } else {
-                showAlert('Không thể kiểm tra trạng thái thanh toán. Vui lòng liên hệ hỗ trợ.', 'danger');
             }
         })
         .catch(error => {
-            console.error('Error checking payment status:', error);
-            showAlert('Lỗi khi kiểm tra trạng thái thanh toán. Vui lòng thử lại.', 'danger');
+            console.error('Payment status check error:', error);
         });
 }
 
-function handlePaymentSuccess(paymentData) {
-    // Đóng modal VNPay nếu đang mở
-    const modal = bootstrap.Modal.getInstance(document.getElementById('vnpayQRModal'));
-    if (modal) {
-        modal.hide();
+function handlePaymentSuccess(data) {
+    showAlert('Thanh toán VNPay thành công!', 'success');
+
+    // Hide VNPay modal
+    const vnpayModal = document.getElementById('vnpayModal');
+    if (vnpayModal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(vnpayModal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
     }
 
-    // Thông báo thành công với animation
-    Swal.fire({
-        icon: 'success',
-        title: '🎉 Thanh toán thành công!',
-        html: `
-            <div class="text-center">
-                <h5>Đơn hàng: <strong>${currentOrder.order_code || currentOrder.order_id}</strong></h5>
-                <p class="text-muted">Số tiền: <strong class="text-success">${formatCurrency(paymentData.amount || 0)}đ</strong></p>
-                <p class="text-success"><i class="fas fa-check-circle me-2"></i>Giao dịch đã được xác nhận</p>
-            </div>
-        `,
-        confirmButtonText: 'Hoàn tất',
-        confirmButtonColor: '#28a745',
-        allowOutsideClick: false
-    }).then(() => {
-        // Reset POS state
-        completeOrderSuccess();
-
-        // Hỏi in hóa đơn nếu có
-        if (paymentData.invoice_url) {
-            setTimeout(() => {
-                Swal.fire({
-                    title: 'In hóa đơn?',
-                    text: 'Bạn có muốn in hóa đơn không?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'In hóa đơn',
-                    cancelButtonText: 'Bỏ qua',
-                    confirmButtonColor: '#007bff'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.open(paymentData.invoice_url, '_blank');
-                    }
-                });
-            }, 500);
-        }
-    });
-}
-
-function handlePaymentPending() {
-    Swal.fire({
-        title: '⏳ Thanh toán đang xử lý',
-        text: 'Giao dịch đang được xử lý. Vui lòng đợi trong giây lát...',
-        icon: 'info',
-        showCancelButton: true,
-        confirmButtonText: 'Kiểm tra lại',
-        cancelButtonText: 'Đóng',
-        timer: 10000, // Auto close after 10 seconds
-        timerProgressBar: true
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // User click "Kiểm tra lại"
-            checkVNPayPaymentStatus(currentOrder.order_id);
-        }
-    });
-}
-
-// FUNCTION MỚI - Xử lý thanh toán thất bại
-function handlePaymentFailure() {
-    Swal.fire({
-        icon: 'error',
-        title: '❌ Thanh toán không thành công',
-        html: `
-            <div class="text-center">
-                <p>Giao dịch chưa được hoàn tất hoặc đã bị hủy.</p>
-                <p class="text-muted">Bạn có thể thử lại hoặc chọn phương thức thanh toán khác.</p>
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'Thử lại',
-        cancelButtonText: 'Chuyển sang tiền mặt',
-        confirmButtonColor: '#007bff',
-        cancelButtonColor: '#28a745'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Thử lại VNPay
-            if (currentOrder && currentOrder.vnpay_qr) {
-                processVNPayPayment(currentOrder);
-            }
-        } else if (result.dismiss === Swal.DismissReason.cancel) {
-            // Chuyển sang tiền mặt
-            switchToCash();
-        }
-    });
-}
-
-// FUNCTION MỚI - Reset POS state sau khi thanh toán thành công
-function completeOrderSuccess() {
-    // Reset order và cart
-    currentOrder = null;
+    // Reset cart and state
     cart = [];
+    currentOrder = null;
     updateCartDisplay();
 
-    // Reset UI buttons
-    document.getElementById('confirm-payment').style.display = 'block';
-    document.getElementById('complete-order').style.display = 'none';
-    document.getElementById('confirm-payment').disabled = false;
-    document.getElementById('confirm-payment').innerHTML = '<i class="bi bi-credit-card me-2"></i>Xác nhận thanh toán';
-
-    // Reset payment method về cash
-    const cashRadio = document.getElementById('cash');
-    if (cashRadio) {
-        cashRadio.checked = true;
+    // Open invoice if available
+    if (data.invoice_url) {
+        window.open(data.invoice_url, '_blank');
     }
-}
-
-function switchToCash() {
-    if (confirm('Bạn có muốn chuyển đơn hàng này sang thanh toán bằng tiền mặt không?')) {
-        if (currentOrder) {
-            updatePaymentMethodToCash(currentOrder.order_id);
-        }
-        cancelVNPayPayment();
-    }
-}
-
-function updatePaymentMethodToCash(orderId) {
-    fetch(`/pos/update-payment-method/${orderId}`, {
-        method: 'POST', headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }, body: JSON.stringify({
-            payment_method: 'cash_at_counter'
-        })
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert('Đã chuyển sang thanh toán tiền mặt', 'success');
-                showCashPaymentInterface();
-            }
-        });
-}
-
-function cancelVNPayPayment() {
-    // Đóng popup window
-    if (vnpayPopupWindow && !vnpayPopupWindow.closed) {
-        vnpayPopupWindow.close();
-    }
-
-    // Clear monitoring interval
-    if (paymentCheckInterval) {
-        clearInterval(paymentCheckInterval);
-        paymentCheckInterval = null;
-    }
-
-    // Đóng modal
-    const modalElement = document.getElementById('vnpayQRModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalElement);
-
-    if (modalInstance) {
-        modalInstance.hide();
-    }
-
-    // Cleanup modal
-    setTimeout(() => {
-        if (modalElement) {
-            modalElement.remove();
-        }
-
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => backdrop.remove());
-
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    }, 300);
-
-    // Reset variables
-    vnpayPopupWindow = null;
-    currentOrder = null;
-    clearCart();
-}
-
-window.addEventListener('message', function (event) {
-    if (event.data.type === 'vnpay_payment_result') {
-        if (vnpayWindow && !vnpayWindow.closed) {
-            vnpayWindow.close();
-        }
-
-        const modal = bootstrap.Modal.getInstance(document.getElementById('vnpayQRModal'));
-        if (modal) {
-            modal.hide();
-        }
-
-        if (event.data.success) {
-            showAlert('Thanh toán VNPay thành công!', 'success');
-            showCompletedOrderInterface(event.data.order);
-        } else {
-            showAlert('Thanh toán VNPay thất bại: ' + event.data.message, 'error');
-        }
-    }
-});
-
-function showCompletedOrderInterface(order) {
-    currentOrder = order;
-
-    document.getElementById('confirm-payment').style.display = 'none';
-    document.getElementById('complete-order').style.display = 'block';
-
-    showAlert(`Đơn hàng #${order.code} đã thanh toán thành công!`, 'success');
 }
 
 // ========================================
-// REFUND MODE FUNCTIONALITY
+// MODE SWITCHING
 // ========================================
 function switchMode(mode) {
     currentMode = mode;
 
-    // Update button states
-    const saleBtn = document.getElementById('sale-mode');
-    const refundBtn = document.getElementById('refund-mode');
+    const saleTab = document.getElementById('sale-tab');
+    const refundTab = document.getElementById('refund-tab');
+    const salePane = document.getElementById('sale-pane');
+    const refundPane = document.getElementById('refund-pane');
 
-    if (saleBtn && refundBtn) {
-        saleBtn.classList.toggle('btn-primary', mode === 'sale');
-        saleBtn.classList.toggle('btn-outline-primary', mode !== 'sale');
-        refundBtn.classList.toggle('btn-warning', mode === 'refund');
-        refundBtn.classList.toggle('btn-outline-warning', mode !== 'refund');
-    }
+    if (mode === 'sale') {
+        saleTab?.classList.add('active');
+        refundTab?.classList.remove('active');
+        salePane?.classList.add('active', 'show');
+        refundPane?.classList.remove('active', 'show');
 
-    // Show/hide sections
-    const refundSection = document.getElementById('refund-section');
-    if (refundSection) {
-        refundSection.style.display = mode === 'refund' ? 'block' : 'none';
-    }
+        // Clear refund data
+        selectedRefundOrder = null;
+        refundItems = {};
 
-    // Clear current data
-    clearCart();
-    selectedRefundOrder = null;
-    refundItems = {};
+        showAlert('Chuyển sang chế độ bán hàng', 'info');
+    } else if (mode === 'refund') {
+        refundTab?.classList.add('active');
+        saleTab?.classList.remove('active');
+        refundPane?.classList.add('active', 'show');
+        salePane?.classList.remove('active', 'show');
 
-    // Update cart header
-    const cartHeader = document.querySelector('#cart-items').closest('.card').querySelector('.card-header h6');
-    if (cartHeader) {
-        if (mode === 'refund') {
-            cartHeader.innerHTML = 'Sản phẩm hoàn trả <span class="badge bg-warning ms-2" id="cart-count">0</span>';
-        } else {
-            cartHeader.innerHTML = 'Giỏ hàng <span class="badge bg-secondary ms-2" id="cart-count">0</span>';
-        }
-    }
+        // Clear cart
+        cart = [];
+        updateCartDisplay();
 
-    // Update search placeholder
-    const searchInput = document.getElementById('unified-search');
-    if (searchInput) {
-        if (mode === 'refund') {
-            searchInput.placeholder = 'Chế độ hoàn trả - Chọn đơn hàng trước';
-            searchInput.disabled = true;
-        } else {
-            searchInput.placeholder = 'Tìm theo tên, SKU, mã vạch... hoặc dùng máy quét';
-            searchInput.disabled = false;
-        }
+        showAlert('Chuyển sang chế độ hoàn trả', 'info');
     }
 }
 
+// ========================================
+// REFUND FUNCTIONALITY
+// ========================================
 function searchRefundOrder() {
     const query = document.getElementById('refund-order-search').value.trim();
-    if (query.length < 2) return;
+
+    if (!query) {
+        showAlert('Vui lòng nhập mã đơn hàng', 'warning');
+        return;
+    }
 
     fetch(`/pos/search-orders?q=${encodeURIComponent(query)}`)
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                displayRefundOrderResults(data.data);
+            if (data.success && data.data.length > 0) {
+                displayRefundOrders(data.data);
+            } else {
+                displayRefundOrders([]);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showAlert('Có lỗi xảy ra khi tìm đơn hàng', 'danger');
+            console.error('Refund order search error:', error);
+            showAlert('Lỗi tìm kiếm đơn hàng', 'danger');
         });
 }
 
-function displayRefundOrderResults(orders) {
-    const resultsDiv = document.getElementById('refund-order-results');
+function displayRefundOrders(orders) {
+    const container = document.getElementById('refund-order-results');
 
     if (orders.length === 0) {
-        resultsDiv.innerHTML = '<p class="text-muted">Không tìm thấy đơn hàng nào</p>';
+        container.innerHTML = `
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-search fs-1"></i>
+                <p>Không tìm thấy đơn hàng</p>
+            </div>
+        `;
         return;
     }
 
-    let html = '<div class="list-group">';
+    let html = '';
     orders.forEach(order => {
-        const refundedAmount = order.total_refunded || 0;
-
         html += `
-            <button type="button" class="list-group-item list-group-item-action"
-                    onclick="selectRefundOrder(${order.id}, '${order.code}')">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <strong>${order.code}</strong>
-                        <small class="text-muted d-block">${order.created_at}</small>
-                    </div>
-                    <div class="text-end">
-                        <div>${formatCurrency(order.grand_total)}</div>
-                        ${refundedAmount > 0 ? `<small class="text-warning">Đã hoàn: ${formatCurrency(refundedAmount)}</small>` : ''}
+            <div class="card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">${order.code}</h6>
+                            <small class="text-muted">
+                                ${order.created_at} • ${order.items_count} sản phẩm
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">${formatCurrency(order.grand_total)}</div>
+                            <small class="text-success">
+                                Có thể hoàn: ${formatCurrency(order.remaining_refundable)}
+                            </small>
+                        </div>
+                        <button class="btn btn-primary btn-sm"
+                                onclick="selectRefundOrder('${order.id}')">
+                            Chọn
+                        </button>
                     </div>
                 </div>
-                <small class="text-muted">${order.items_count} sản phẩm</small>
-            </button>
+            </div>
         `;
     });
-    html += '</div>';
 
-    resultsDiv.innerHTML = html;
+    container.innerHTML = html;
 }
 
-function selectRefundOrder(orderId, orderCode) {
+function selectRefundOrder(orderId) {
     fetch(`/pos/order-details/${orderId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 selectedRefundOrder = data.data;
-                displaySelectedRefundOrder();
-                enableRefundSearch();
+                displayRefundItems(data.data.items);
+                showAlert(`Đã chọn đơn hàng ${data.data.code}`, 'success');
+            } else {
+                showAlert('Lỗi tải chi tiết đơn hàng', 'danger');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showAlert('Có lỗi xảy ra khi tải chi tiết đơn hàng', 'danger');
+            console.error('Order details error:', error);
+            showAlert('Lỗi tải chi tiết đơn hàng', 'danger');
         });
 }
 
-function displaySelectedRefundOrder() {
-    const order = selectedRefundOrder;
-    const detailsDiv = document.getElementById('refund-order-details');
-    const itemsDiv = document.getElementById('refund-order-items');
+function displayRefundItems(items) {
+    const container = document.getElementById('refund-items-list');
 
-    if (detailsDiv) {
-        detailsDiv.innerHTML = `
-            <div class="row">
-                <div class="col-6">
-                    <strong>Mã đơn hàng:</strong> ${order.code}
-                </div>
-                <div class="col-6">
-                    <strong>Ngày tạo:</strong> ${order.created_at}
-                </div>
-                <div class="col-6 mt-2">
-                    <strong>Tổng tiền:</strong> ${formatCurrency(order.grand_total)}
-                </div>
-                <div class="col-6 mt-2">
-                    <strong>Còn có thể hoàn:</strong> ${formatCurrency(order.remaining_refundable)}
-                </div>
-            </div>
-        `;
-    }
-
-    if (itemsDiv) {
-        let itemsHtml = '<h6 class="mt-3">Sản phẩm trong đơn:</h6><div class="list-group">';
-        order.items.forEach(item => {
-            itemsHtml += `
-                <div class="list-group-item">
+    let html = '';
+    items.forEach(item => {
+        html += `
+            <div class="card mb-2">
+                <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <strong>${item.name_snapshot}</strong>
-                            <br><small class="text-muted">SKU: ${item.sku_snapshot}</small>
+                            <h6 class="mb-1">${item.name_snapshot}</h6>
+                            <small class="text-muted">SKU: ${item.sku_snapshot}</small>
+                            <div class="mt-1">
+                                <span class="fw-bold">${formatCurrency(item.unit_price)}</span>
+                                <span class="text-muted">x ${item.quantity}</span>
+                            </div>
                         </div>
-                        <div class="text-end">
-                            <div>SL: ${item.quantity}</div>
-                            <div>${formatCurrency(item.line_total)}</div>
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-warning"
-                                    onclick="addToRefundCart(${item.id}, '${item.name_snapshot}', '${item.sku_snapshot}', ${item.unit_price}, ${item.quantity})">
-                                <i class="fas fa-undo"></i> Hoàn trả
+                        <div class="d-flex align-items-center">
+                            <input type="number"
+                                   class="form-control form-control-sm me-2"
+                                   style="width: 80px;"
+                                   min="0"
+                                   max="${item.quantity}"
+                                   value="0"
+                                   id="refund-qty-${item.id}"
+                                   onchange="updateRefundItem(${item.id}, this.value, ${item.unit_price})">
+                            <button class="btn btn-outline-primary btn-sm"
+                                    onclick="setFullRefund(${item.id}, ${item.quantity}, ${item.unit_price})">
+                                Toàn bộ
                             </button>
                         </div>
                     </div>
                 </div>
-            `;
-        });
-        itemsHtml += '</div>';
-        itemsDiv.innerHTML = itemsHtml;
-    }
+            </div>
+        `;
+    });
 
-    const selectedDiv = document.getElementById('selected-refund-order');
-    if (selectedDiv) {
-        selectedDiv.style.display = 'block';
-    }
+    container.innerHTML = html;
 }
 
-function enableRefundSearch() {
-    const searchInput = document.getElementById('unified-search');
-    if (searchInput) {
-        searchInput.disabled = false;
-        searchInput.placeholder = 'Tìm sản phẩm để hoàn trả từ đơn hàng đã chọn...';
-    }
-}
+function updateRefundItem(itemId, quantity, unitPrice) {
+    quantity = parseInt(quantity) || 0;
 
-function addToRefundCart(itemId, name, sku, unitPrice, maxQuantity) {
-    const existingItem = cart.find(item => item.original_item_id === itemId);
-
-    if (existingItem) {
-        if (existingItem.quantity < maxQuantity) {
-            existingItem.quantity += 1;
-            existingItem.line_total = existingItem.quantity * existingItem.unit_price;
-        } else {
-            showAlert('Không thể hoàn trả nhiều hơn số lượng đã mua', 'warning');
-            return;
-        }
-    } else {
-        const cartItem = {
-            id: Date.now(),
+    if (quantity > 0) {
+        refundItems[itemId] = {
             original_item_id: itemId,
-            name: name,
-            sku: sku,
-            unit_price: unitPrice,
-            quantity: 1,
-            line_total: unitPrice,
-            max_quantity: maxQuantity,
-            type: 'refund'
+            quantity: quantity,
+            unit_price: unitPrice
         };
-
-        cart.push(cartItem);
+    } else {
+        delete refundItems[itemId];
     }
 
-    updateCartDisplay();
-    showAlert(`Đã thêm "${name}" vào danh sách hoàn trả`, 'success');
+    updateRefundSummary();
 }
 
-function confirmRefund() {
-    if (cart.length === 0) {
-        showAlert('Chưa chọn sản phẩm nào để hoàn trả', 'warning');
+function setFullRefund(itemId, maxQuantity, unitPrice) {
+    document.getElementById(`refund-qty-${itemId}`).value = maxQuantity;
+    updateRefundItem(itemId, maxQuantity, unitPrice);
+}
+
+function updateRefundSummary() {
+    const summaryElement = document.getElementById('refund-summary');
+    const processBtn = document.getElementById('process-refund');
+
+    const totalItems = Object.keys(refundItems).length;
+    const totalAmount = Object.values(refundItems).reduce((sum, item) =>
+        sum + (item.quantity * item.unit_price), 0
+    );
+
+    if (totalItems > 0) {
+        summaryElement.innerHTML = `
+            <div class="alert alert-info">
+                <strong>Hoàn trả:</strong> ${totalItems} mặt hàng - ${formatCurrency(totalAmount)}
+            </div>
+        `;
+        processBtn.disabled = false;
+    } else {
+        summaryElement.innerHTML = '';
+        processBtn.disabled = true;
+    }
+}
+
+function processRefund() {
+    if (!selectedRefundOrder || Object.keys(refundItems).length === 0) {
+        showAlert('Vui lòng chọn sản phẩm hoàn trả', 'warning');
         return;
     }
 
-    if (!selectedRefundOrder) {
-        showAlert('Chưa chọn đơn hàng để hoàn trả', 'warning');
+    const reason = document.getElementById('refund-reason').value;
+    const reasonDetail = document.getElementById('refund-reason-detail').value;
+
+    if (!reason) {
+        showAlert('Vui lòng chọn lý do hoàn trả', 'warning');
         return;
     }
-
-    const refundReason = prompt('Nhập lý do hoàn trả:');
-    if (!refundReason) return;
 
     const refundData = {
-        parent_order_id: selectedRefundOrder.id, items: cart.map(item => ({
-            original_item_id: item.original_item_id, quantity: item.quantity, unit_price: item.unit_price
-        })), refund_reason: 'other', refund_reason_detail: refundReason, payment_method: 'cash'
+        parent_order_id: selectedRefundOrder.id,
+        items: Object.values(refundItems),
+        refund_reason: reason,
+        refund_reason_detail: reasonDetail,
+        payment_method: 'cash_at_counter'
     };
 
     fetch('/pos/create-refund', {
-        method: 'POST', headers: {
+        method: 'POST',
+        headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }, body: JSON.stringify(refundData)
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(refundData)
     })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 showAlert('Hoàn trả thành công!', 'success');
-                clearCart();
+
+                // Reset refund state
                 selectedRefundOrder = null;
+                refundItems = {};
+                document.getElementById('refund-order-search').value = '';
+                document.getElementById('refund-order-results').innerHTML = '';
+                document.getElementById('refund-items-list').innerHTML = '';
+                document.getElementById('refund-summary').innerHTML = '';
+                document.getElementById('refund-reason').value = '';
+                document.getElementById('refund-reason-detail').value = '';
 
-                const selectedDiv = document.getElementById('selected-refund-order');
-                if (selectedDiv) selectedDiv.style.display = 'none';
-
-                const searchInput = document.getElementById('refund-order-search');
-                if (searchInput) searchInput.value = '';
-
-                const resultsDiv = document.getElementById('refund-order-results');
-                if (resultsDiv) resultsDiv.innerHTML = '';
             } else {
-                showAlert(data.message, 'danger');
+                showAlert(data.message || 'Lỗi xử lý hoàn trả', 'danger');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showAlert('Có lỗi xảy ra khi hoàn trả', 'danger');
+            console.error('Refund processing error:', error);
+            showAlert('Lỗi xử lý hoàn trả', 'danger');
         });
 }
 
@@ -1369,252 +1211,111 @@ function confirmRefund() {
 // UTILITY FUNCTIONS
 // ========================================
 function formatCurrency(amount) {
-    return new Intl.NumberFormat('vi-VN').format(amount);
-}
-
-function updatePaymentMethodUI() {
-    // Update UI based on selected payment method
-    const selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
-
-    // You can add specific UI updates here based on payment method
-    console.log('Payment method selected:', selectedMethod);
-}
-
-function loadCategories() {
-    // Load categories for filtering (if needed)
-    // Implementation depends on your backend API
+    if (isNaN(amount)) return '0';
+    return parseInt(amount).toLocaleString('vi-VN');
 }
 
 function showAlert(message, type = 'info') {
-    console.log(`${type.toUpperCase()}: ${message}`);
+    // Create alert element
+    const alertId = 'alert-' + Date.now();
+    const alertHtml = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show position-fixed"
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${getIconForType(type)} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
 
-    // Configure toast based on type
-    let toastConfig = {
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+            alertElement.remove();
         }
-    };
+    }, 5000);
+}
 
-    // Set icon and styling based on type
+function getIconForType(type) {
     switch (type) {
-        case 'success':
-            toastConfig.icon = 'success';
-            toastConfig.title = message;
-            toastConfig.background = '#d1ecf1';
-            toastConfig.color = '#0c5460';
-            break;
-
-        case 'danger':
-        case 'error':
-            toastConfig.icon = 'error';
-            toastConfig.title = message;
-            toastConfig.background = '#f8d7da';
-            toastConfig.color = '#721c24';
-            toastConfig.timer = 4000; // Longer for errors
-            break;
-
-        case 'warning':
-            toastConfig.icon = 'warning';
-            toastConfig.title = message;
-            toastConfig.background = '#fff3cd';
-            toastConfig.color = '#856404';
-            break;
-
-        case 'info':
-        default:
-            toastConfig.icon = 'info';
-            toastConfig.title = message;
-            toastConfig.background = '#cce7ff';
-            toastConfig.color = '#004085';
-            break;
+        case 'success': return 'check-circle';
+        case 'danger': return 'exclamation-triangle';
+        case 'warning': return 'exclamation-circle';
+        case 'info': return 'info-circle';
+        default: return 'info-circle';
     }
+}
 
-    // Show the toast
-    Swal.fire(toastConfig);
+function loadCategories() {
+    fetch('/api/products/categories')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                categories = data.data;
+                console.log('Categories loaded:', categories.length);
+            }
+        })
+        .catch(error => {
+            console.error('Categories loading error:', error);
+        });
+}
+
+function updatePaymentMethodUI() {
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
+
+    // Update UI based on selected payment method
+    if (paymentMethod === 'vnpay') {
+        // Show VNPay specific UI
+        console.log('VNPay selected');
+    } else if (paymentMethod === 'cash_at_counter') {
+        // Show cash specific UI
+        console.log('Cash selected');
+    }
 }
 
 // ========================================
-// CSS STYLES (để đảm bảo UI hoạt động đúng)
+// KEYBOARD SHORTCUTS
 // ========================================
-const cssStyles = `
-<style>
-/* Scan Guide Overlay */
-.scan-guide-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-}
+document.addEventListener('keydown', function (e) {
+    // Ignore if input is focused
+    if (isInputElementFocused()) return;
 
-.scan-frame {
-    width: 60%;
-    height: 40%;
-    position: relative;
-    border: 3px dashed rgba(212, 165, 116, 0.9);
-    border-radius: 12px;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { border-color: rgba(212, 165, 116, 0.9); }
-    50% { border-color: rgba(212, 165, 116, 0.5); }
-}
-
-.scan-corners .corner {
-    position: absolute;
-    width: 25px;
-    height: 25px;
-    border: 4px solid #ae8269;
-    border-radius: 4px;
-}
-
-.scan-corners .top-left {
-    top: -4px;
-    left: -4px;
-    border-right: none;
-    border-bottom: none;
-}
-
-.scan-corners .top-right {
-    top: -4px;
-    right: -4px;
-    border-left: none;
-    border-bottom: none;
-}
-
-.scan-corners .bottom-left {
-    bottom: -4px;
-    left: -4px;
-    border-right: none;
-    border-top: none;
-}
-
-.scan-corners .bottom-right {
-    bottom: -4px;
-    right: -4px;
-    border-left: none;
-    border-top: none;
-}
-
-.scan-line {
-    position: absolute;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, #ae8269, transparent);
-    top: 50%;
-    left: 0;
-    animation: scanAnimation 2s ease-in-out infinite;
-    border-radius: 2px;
-}
-
-@keyframes scanAnimation {
-    0%, 100% {
-        transform: translateY(-50%) scaleX(0.5);
-        opacity: 0.5;
+    switch (e.key) {
+        case 'F1':
+            e.preventDefault();
+            switchMode('sale');
+            break;
+        case 'F2':
+            e.preventDefault();
+            switchMode('refund');
+            break;
+        case 'F3':
+            e.preventDefault();
+            document.getElementById('unified-search')?.focus();
+            break;
+        case 'F4':
+            e.preventDefault();
+            toggleBarcodeScanner();
+            break;
+        case 'Escape':
+            e.preventDefault();
+            hideSearchResults();
+            break;
     }
-    50% {
-        transform: translateY(-50%) scaleX(1);
-        opacity: 1;
+});
+
+// ========================================
+// CLEANUP ON PAGE UNLOAD
+// ========================================
+window.addEventListener('beforeunload', function () {
+    if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
     }
-}
 
-.scan-instructions {
-    margin-top: 20px;
-    text-align: center;
-    color: white;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-    font-weight: 500;
-    padding: 0.75rem 1.5rem;
-    background: rgba(40, 167, 69, 0.8);
-    border-radius: 25px;
-    backdrop-filter: blur(10px);
-}
+    if (vnpayPopupWindow && !vnpayPopupWindow.closed) {
+        vnpayPopupWindow.close();
+    }
+});
 
-/* Search Results */
-#search-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    z-index: 1050;
-    background: white;
-    border: 1px solid #e5e2df;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(52, 46, 44, 0.12);
-    backdrop-filter: blur(10px);
-    max-height: 400px;
-    overflow-y: auto;
-    display: none;
-}
-
-.search-result-item {
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid #e5e2df;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.search-result-item:hover {
-    background: #e8dcc6;
-    transform: translateX(5px);
-}
-
-.search-result-item:last-child {
-    border-bottom: none;
-}
-
-.search-result-item.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Cart Items */
-.cart-item {
-    border-bottom: 1px solid #e5e2df;
-    padding: 1rem 0;
-}
-
-.cart-item:last-child {
-    border-bottom: none;
-}
-
-/* Barcode Scanner Status */
-#barcode-scanner-status .alert {
-    border-left: 4px solid #198754;
-    background-color: #d1ecf1;
-    border-color: #bee5eb;
-}
-
-.scanner-active {
-    animation: pulse-scanner 2s infinite;
-}
-
-@keyframes pulse-scanner {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
-</style>
-`;
-
-// Inject CSS if not already present
-if (!document.querySelector('#pos-custom-styles')) {
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'pos-custom-styles';
-    styleSheet.innerHTML = cssStyles.replace('<style>', '').replace('</style>', '');
-    document.head.appendChild(styleSheet);
-}

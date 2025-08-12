@@ -21,6 +21,8 @@ class Product extends Model
         'sku',
         'ean13',
         'upc',
+        'stock_quantity',
+        'has_variants',
         'status',
     ];
 
@@ -95,5 +97,19 @@ class Product extends Model
             return round((($this->price - $this->sale_price) / $this->price) * 100);
         }
         return 0;
+    }
+
+    public function getTotalStockAttribute()
+    {
+        if ($this->has_variants) {
+            return $this->variants->sum('stock_quantity');
+        }
+
+        return $this->stock_quantity;
+    }
+
+    public function getInStockAttribute()
+    {
+        return $this->total_stock > 0;
     }
 }

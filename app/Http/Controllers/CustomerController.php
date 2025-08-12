@@ -101,10 +101,8 @@ class CustomerController extends Controller
             'first_order' => $customer->orders()->oldest()->first(),
         ];
 
-        // ✅ Monthly spending chart (last 12 months)
         $monthlySpending = $this->getMonthlySpending($customer);
 
-        // ✅ Top purchased products
         $topProducts = $this->getTopProducts($customer);
 
         return view('customer.show', compact('customer', 'orders', 'stats', 'monthlySpending', 'topProducts'));
@@ -112,7 +110,7 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
-        return view('customer.edit', compact('customer'));
+        return view('customer.create', compact('customer'));
     }
 
     public function update(Request $request, Customer $customer)
@@ -149,7 +147,6 @@ class CustomerController extends Controller
     }
 
 
-    // ✅ Customer orders history (for modal/ajax)
     public function orders(Customer $customer)
     {
         $orders = Order::where('customer_id', $customer->id)
@@ -160,7 +157,6 @@ class CustomerController extends Controller
         return view('customer.orders', compact('customer', 'orders'));
     }
 
-    // ✅ Update customer tier manually
     public function updateTier(Customer $customer, Request $request)
     {
         $validated = $request->validate([

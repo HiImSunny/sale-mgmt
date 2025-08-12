@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->string('code')->unique();
-            $table->enum('payment_method', ['vnpay', 'cod', 'cash_at_counter']);
+            $table->enum('payment_method', ['vnpay', 'cash_at_counter']);
             $table->enum('payment_status', ['unpaid', 'paid', 'failed'])->default('unpaid');
             $table->enum('status', ['pending', 'completed', 'canceled'])->default('pending');
             $table->decimal('subtotal', 12, 2);

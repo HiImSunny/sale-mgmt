@@ -15,10 +15,10 @@ return new class extends Migration
             $table->string('upc')->nullable();
             $table->decimal('price', 12, 2);
             $table->decimal('sale_price', 12, 2)->nullable();
-            $table->integer('stock')->default(0);
+            $table->integer('stock_quantity')->default(0);
             $table->tinyInteger('status')->default(1);
             $table->timestamps();
-            
+
             $table->index(['sku']);
             $table->index(['ean13']);
             $table->index(['upc']);

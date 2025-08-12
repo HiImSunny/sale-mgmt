@@ -232,7 +232,7 @@
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                                 @if($order->status === 'completed')
-                                                    <a href="{{ route('orders.invoice', $order) }}"
+                                                    <a href="{{ $order->type === 'sale' ? route('orders.invoice', $order) : route('orders.refund-invoice', $order) }}"
                                                        class="btn btn-outline-primary" title="In hóa đơn" target="_blank">
                                                         <i class="fas fa-print"></i>
                                                     </a>

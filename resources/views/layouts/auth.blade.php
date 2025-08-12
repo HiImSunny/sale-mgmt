@@ -453,7 +453,7 @@
                     <i class="fas fa-store"></i>
                 </div>
                 <h1 class="brand-title">PacificStore</h1>
-                <p class="brand-subtitle">POS System</p>
+                <p class="brand-subtitle">Quản lý bán hàng</p>
             </div>
 
             {{-- Card --}}

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Customer;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\InventoryTransaction;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,9 +21,9 @@ class OrderController extends Controller
 
         //  Search functionality
         if ($search = $request->get('search')) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
-                    ->orWhereHas('customer', function($customerQuery) use ($search) {
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
                         $customerQuery->where('name', 'like', "%{$search}%")
                             ->orWhere('phone', 'like', "%{$search}%");
                     });
@@ -64,12 +66,17 @@ class OrderController extends Controller
 
         //  Statistics
         $stats = [
-            'total' => Order::count(),
+            'total' => Order::whereNot('type', 'refund')->count(),
             'pending' => Order::where('status', 'pending')->count(),
             'completed' => Order::where('status', 'completed')->count(),
             'canceled' => Order::where('status', 'canceled')->count(),
             'unpaid' => Order::where('payment_status', 'unpaid')->count(),
-            'total_revenue' => Order::where('status', 'completed')->sum('grand_total'),
+            'total_revenue' => Order::where('status', 'completed')
+                    ->where('type', 'sale')
+                    ->sum('grand_total')
+                - Order::where('status', 'completed')
+                    ->where('type', 'refund')
+                    ->sum('grand_total'),
             'today_orders' => Order::whereDate('created_at', today())->count(),
             'refund_orders' => Order::where('type', 'refund')->count(),
         ];
@@ -108,7 +115,7 @@ class OrderController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        DB::transaction(function() use ($order, $validated) {
+        DB::transaction(function () use ($order, $validated) {
             $oldStatus = $order->status;
             $oldPaymentStatus = $order->payment_status;
 
@@ -153,7 +160,7 @@ class OrderController extends Controller
             'refund_items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        DB::transaction(function() use ($order, $validated) {
+        DB::transaction(function () use ($order, $validated) {
             //  Calculate refund amount
             $refundAmount = 0;
             $refundItems = [];
@@ -230,29 +237,292 @@ class OrderController extends Controller
 
     public function invoice(Order $order)
     {
-        if ($order->status !== 'completed') {
-            return back()->with('swal_error', 'Chỉ có thể in hóa đơn cho đơn hàng đã hoàn thành!');
+        try {
+            // Validate order type
+            if ($order->type !== 'sale') {
+                return back()->with('swal_error', 'Chỉ có thể in hóa đơn bán hàng cho đơn hàng có loại "sale"!');
+            }
+
+            if (!in_array($order->status, ['pending', 'completed', 'confirmed', 'processing'])) {
+                return back()->with('swal_error', 'Trạng thái đơn hàng không hợp lệ để xuất hóa đơn bán hàng!');
+            }
+
+            // Load necessary relationships
+            $order->load([
+                'user',
+                'items.product',
+                'items.productVariant',
+                'customer'
+            ]);
+
+            // Company information
+            $company = [
+                'name' => config('app.company_name', 'PacificStore'),
+                'address' => config('app.company_address', '168 Nguyễn Văn Cừ Nối Dài, An Bình, Ninh Kiều, Cần Thơ'),
+                'phone' => config('app.company_phone', '0292 3798 668'),
+                'email' => config('app.company_email', 'info@pacific.store'),
+            ];
+
+            // Payment method mapping
+            $paymentMethods = [
+                'cash_at_counter' => 'Tiền mặt',
+                'vnpay' => 'VNPay',
+            ];
+
+            // Status mapping
+            $statusMapping = [
+                'pending' => 'Chờ xử lý',
+                'completed' => 'Hoàn tất',
+                'cancelled' => 'Đã hủy',
+            ];
+
+            // Create invoice ARRAY for template compatibility
+            $invoice = [
+                'invoice_number' => $order->code,
+                'invoice_date' => $order->created_at,
+                'due_date' => $order->created_at->addDays(7),
+                'status' => $order->status,
+                'status_label' => $statusMapping[$order->status] ?? $order->status,
+                'payment_method' => $paymentMethods[$order->payment_method] ?? ($order->payment_method ? ucfirst($order->payment_method) : 'Không xác định'),
+                'payment_status' => $order->payment_status,
+                'created_at' => $order->created_at,
+                'createdBy' => auth()->user() ?? (object)['name' => 'System', 'position' => 'Nhân viên bán hàng'],
+
+                // Customer information (array thay vì object)
+                'customer' => [
+                    'name' => $order->customer->name ?? 'Khách vãng lai',
+                    'phone' => $order->customer->phone ?? 'N/A',
+                    'email' => $order->customer->email ?? 'N/A',
+                    'address' => $order->customer->address ?? 'N/A',
+                ],
+
+                // Invoice items (array thay vì object)
+                'invoiceItems' => $order->items->map(function ($item) {
+                    $unitPrice = $item->unit_price;
+                    $quantity = $item->quantity;
+                    $discountAmount = $item->discount_amount ?? 0;
+                    $discountPercent = $item->discount_percent ?? 0;
+
+                    // Tính total price sau discount
+                    $totalPrice = ($unitPrice * $quantity);
+                    if ($discountPercent > 0) {
+                        $totalPrice -= $totalPrice * ($discountPercent / 100);
+                    } else {
+                        $totalPrice -= $discountAmount;
+                    }
+
+                    // ✅ FIXED: Get product name from correct source
+                    $productName = $item->name_snapshot ??
+                        ($item->product ? $item->product->name : 'N/A');
+
+                    $productSku = $item->sku_snapshot ??
+                        ($item->product ? $item->product->sku : '');
+
+                    return [
+                        'product' => [
+                            'name' => $productName,
+                            'sku' => $productSku,
+                            'unit' => 'Cái' // Default unit
+                        ],
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                        'discount_percent' => $discountPercent,
+                        'discount_amount' => $discountAmount,
+                        'total_price' => $totalPrice,
+                    ];
+                })->toArray(),
+
+                // Totals calculation
+                'subtotal' => $order->subtotal ?? $order->items->sum(function ($item) {
+                        return $item->quantity * $item->unit_price;
+                    }),
+                'total_discount' => $order->total_discount ?? $order->items->sum(function ($item) {
+                        if ($item->discount_percent > 0) {
+                            return ($item->quantity * $item->unit_price) * ($item->discount_percent / 100);
+                        }
+                        return $item->discount_amount ?? 0;
+                    }),
+                'total_amount' => $order->grand_total,
+                'notes' => $order->notes ?? '',
+
+            ];
+
+            // Generate PDF
+            $pdf = Pdf::loadView('pdf.invoice', compact('order', 'company', 'invoice'));
+
+            // Configure PDF settings
+            $pdf->setPaper('A4', 'portrait')
+                ->setOptions([
+                    'defaultFont' => 'DejaVu Sans',
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'debugKeepTemp' => false,
+                    'debugCss' => false,
+                    'debugLayout' => false,
+                ]);
+
+            // Generate filename
+            $date = $order->created_at->format('Y-m-d');
+            $filename = "hoa-don-ban-hang-{$order->code}-{$date}.pdf";
+
+            // Return PDF stream
+            return $pdf->stream($filename);
+
+        } catch (\Exception $e) {
+            \Log::error('Invoice generation failed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('swal_error', 'Có lỗi xảy ra khi tạo hóa đơn bán hàng. Vui lòng thử lại sau!');
         }
-
-        $order->load(['customer', 'user', 'items.product']);
-
-        return view('admin.orders.invoice', compact('order'));
     }
 
+    public function refundInvoice(Order $order)
+    {
+        try {
+            // Validate order type
+            if ($order->type !== 'refund') {
+                return back()->with('swal_error', 'Chỉ có thể in hóa đơn hoàn hàng cho đơn hàng có loại "refund"!');
+            }
+
+            if (!in_array($order->status, ['pending', 'completed', 'cancelled'])) {
+                return back()->with('swal_error', 'Trạng thái đơn hàng không hợp lệ để xuất hóa đơn hoàn hàng!');
+            }
+
+            // Load necessary relationships
+            $order->load([
+                'user',
+                'items.product',
+                'items.productVariant',
+                'customer',
+                'parentOrder.user',
+                'parentOrder.items.product',
+                'parentOrder.items.productVariant',
+                'parentOrder.customer'
+            ]);
+
+            // Validate parent order exists
+            if (!$order->parentOrder) {
+                return back()->with('swal_error', 'Không tìm thấy đơn hàng gốc để thực hiện hoàn hàng!');
+            }
+
+            // Company information
+            $company = [
+                'name' => config('app.company_name', 'PacificStore'),
+                'address' => config('app.company_address', '168 Nguyễn Văn Cừ Nối Dài, An Bình, Ninh Kiều, Cần Thơ'),
+                'phone' => config('app.company_phone', '0292 3798 668'),
+                'email' => config('app.company_email', 'info@pacific.store'),
+            ];
+
+            // Payment method mapping
+            $paymentMethods = [
+                'cash_at_counter' => 'Tiền mặt',
+                'vnpay' => 'VNPay',
+            ];
+
+            // Create return ARRAY for template compatibility
+            $return = [
+                'return_code' => $order->code,
+                'return_date' => $order->created_at,
+                'status' => $order->status,
+                'reason' => $this->getRefundReasonText($order->refund_reason),
+                'reason_detail' => $order->refund_reason_detail ?? 'Không có ghi chú chi tiết',
+                'total_return_amount' => $order->grand_total,
+                'payment_method' => $paymentMethods[$order->payment_method] ?? ($order->payment_method ? ucfirst($order->payment_method) : 'Không xác định'),
+                'payment_status' => $order->payment_status,
+                'created_at' => $order->created_at,
+                'processedBy' => auth()->user() ?? (object)['name' => 'System'],
+
+                // Original invoice information (array thay vì object)
+                'originalInvoice' => [
+                    'invoice_number' => $order->parentOrder->code,
+                    'created_at' => $order->parentOrder->created_at,
+                    'customer_name' => $order->parentOrder->customer->name ?? 'Khách vãng lai',
+                    'customer_phone' => $order->parentOrder->customer->phone ?? 'N/A',
+                    'customer_address' => $order->parentOrder->customer->address ?? 'N/A',
+                    'total_amount' => $order->parentOrder->grand_total,
+                ],
+
+                // Return items (array thay vì object)
+                'returnItems' => $order->items->map(function ($item) {
+                    // ✅ FIXED: Get product name from correct source
+                    $productName = $item->name_snapshot ??
+                        ($item->product ? $item->product->name : 'N/A');
+
+                    return [
+                        'product' => [
+                            'name' => $productName
+                        ],
+                        'quantity_returned' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'total_price' => $item->line_total,
+                        'item_condition' => $item->condition ?? 'Bình thường',
+                    ];
+                })->toArray()
+            ];
+
+            // Generate PDF
+            $pdf = Pdf::loadView('pdf.refund-invoice', compact('order', 'company', 'return'));
+
+            // Configure PDF settings
+            $pdf->setPaper('A4', 'portrait')
+                ->setOptions([
+                    'defaultFont' => 'DejaVu Sans',
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'debugKeepTemp' => false,
+                    'debugCss' => false,
+                    'debugLayout' => false,
+                ]);
+
+            // Generate filename
+            $date = $order->created_at->format('Y-m-d');
+            $filename = "hoa-don-hoan-hang-{$order->code}-{$date}.pdf";
+
+            // Return PDF stream
+            return $pdf->stream($filename);
+
+        } catch (\Exception $e) {
+            \Log::error('Refund invoice generation failed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('swal_error', 'Có lỗi xảy ra khi tạo hóa đơn hoàn hàng. Vui lòng thử lại sau!');
+        }
+    }
+
+    public function getRefundReasonText($reason)
+    {
+        $reasons = [
+            'customer_request' => 'Khách hàng yêu cầu hoàn hàng',
+            'damaged_product' => 'Sản phẩm bị hư hỏng',
+            'wrong_product' => 'Giao nhầm sản phẩm',
+            'quality_issue' => 'Vấn đề về chất lượng',
+            'other' => 'Lý do khác'
+        ];
+
+        return $reasons[$reason] ?? 'Không xác định';
+    }
+
+    // ✅ FIXED: Inventory methods với stock_quantity
     private function handleInventoryOut(Order $order)
     {
         try {
             foreach ($order->items as $orderItem) {
+                // ✅ FIXED: Handle both simple products and variants
                 if ($orderItem->product_variant_id) {
+                    // Handle variant inventory
                     $variant = ProductVariant::find($orderItem->product_variant_id);
-
                     if ($variant) {
-                        if ($variant->stock < $orderItem->quantity) {
-                            Log::warning("Insufficient stock for variant {$variant->id}. Available: {$variant->stock}, Required: {$orderItem->quantity}");
-                            // Continue processing but log the warning
+                        if ($variant->stock_quantity < $orderItem->quantity) {
+                            Log::warning("Insufficient stock for variant {$variant->id}. Available: {$variant->stock_quantity}, Required: {$orderItem->quantity}");
                         }
 
-                        $variant->decrement('stock', $orderItem->quantity);
+                        $variant->decrement('stock_quantity', $orderItem->quantity);
 
                         InventoryTransaction::create([
                             'product_variant_id' => $variant->id,
@@ -266,6 +536,19 @@ class OrderController extends Controller
 
                         Log::info("Inventory reduced for variant {$variant->id}: -{$orderItem->quantity} (Order: {$order->code})");
                     }
+                } elseif ($orderItem->product_id) {
+                    // ✅ FIXED: Handle simple product inventory
+                    $product = Product::find($orderItem->product_id);
+                    if ($product && !$product->has_variants) {
+                        if ($product->stock_quantity < $orderItem->quantity) {
+                            Log::warning("Insufficient stock for product {$product->id}. Available: {$product->stock_quantity}, Required: {$orderItem->quantity}");
+                        }
+
+                        $product->decrement('stock_quantity', $orderItem->quantity);
+
+                        // Note: You might want to create inventory transaction for products too
+                        Log::info("Inventory reduced for product {$product->id}: -{$orderItem->quantity} (Order: {$order->code})");
+                    }
                 }
             }
         } catch (\Exception $e) {
@@ -278,14 +561,13 @@ class OrderController extends Controller
     {
         try {
             foreach ($order->items as $orderItem) {
+                // ✅ FIXED: Handle both simple products and variants
                 if ($orderItem->product_variant_id) {
+                    // Handle variant inventory
                     $variant = ProductVariant::find($orderItem->product_variant_id);
-
                     if ($variant) {
-                        //  Restore inventory
-                        $variant->increment('stock', $orderItem->quantity);
+                        $variant->increment('stock_quantity', $orderItem->quantity);
 
-                        //  Create inventory transaction record
                         InventoryTransaction::create([
                             'product_variant_id' => $variant->id,
                             'type' => 'in',
@@ -298,6 +580,14 @@ class OrderController extends Controller
 
                         Log::info("Inventory restored for variant {$variant->id}: +{$orderItem->quantity} (Order: {$order->code})");
                     }
+                } elseif ($orderItem->product_id) {
+                    // ✅ FIXED: Handle simple product inventory
+                    $product = Product::find($orderItem->product_id);
+                    if ($product && !$product->has_variants) {
+                        $product->increment('stock_quantity', $orderItem->quantity);
+
+                        Log::info("Inventory restored for product {$product->id}: +{$orderItem->quantity} (Order: {$order->code})");
+                    }
                 }
             }
         } catch (\Exception $e) {
@@ -309,14 +599,13 @@ class OrderController extends Controller
     private function restoreInventoryForRefund(OrderItem $originalOrderItem, int $refundQuantity, Order $refundOrder)
     {
         try {
+            // ✅ FIXED: Handle both simple products and variants
             if ($originalOrderItem->product_variant_id) {
+                // Handle variant inventory
                 $variant = ProductVariant::find($originalOrderItem->product_variant_id);
-
                 if ($variant) {
-                    //  Restore inventory
-                    $variant->increment('stock', $refundQuantity);
+                    $variant->increment('stock_quantity', $refundQuantity);
 
-                    //  Create inventory transaction record
                     InventoryTransaction::create([
                         'product_variant_id' => $variant->id,
                         'type' => 'in',
@@ -329,6 +618,14 @@ class OrderController extends Controller
 
                     Log::info("Inventory restored for refund - Variant {$variant->id}: +{$refundQuantity} (Refund: {$refundOrder->code})");
                 }
+            } elseif ($originalOrderItem->product_id) {
+                // ✅ FIXED: Handle simple product inventory
+                $product = Product::find($originalOrderItem->product_id);
+                if ($product && !$product->has_variants) {
+                    $product->increment('stock_quantity', $refundQuantity);
+
+                    Log::info("Inventory restored for refund - Product {$product->id}: +{$refundQuantity} (Refund: {$refundOrder->code})");
+                }
             }
         } catch (\Exception $e) {
             Log::error("Error restoring inventory for refund {$refundOrder->id}: " . $e->getMessage());
@@ -339,10 +636,19 @@ class OrderController extends Controller
     //  HELPER METHODS
     private function calculateProfitMargin(Order $order)
     {
-        // Simplified profit calculation
-        $totalCost = $order->items->sum(function($item) {
-            // Assume cost is 70% of sale price if not available
-            $costPrice = $item->productVariant->cost ?? ($item->unit_price * 0.7);
+        // ✅ FIXED: Calculate profit with new structure
+        $totalCost = $order->items->sum(function ($item) {
+            if ($item->productVariant) {
+                // Use variant cost if available, otherwise estimate
+                $costPrice = $item->productVariant->cost ?? ($item->unit_price * 0.7);
+            } elseif ($item->product) {
+                // Use product cost if available, otherwise estimate
+                $costPrice = $item->product->cost ?? ($item->unit_price * 0.7);
+            } else {
+                // Fallback estimate
+                $costPrice = $item->unit_price * 0.7;
+            }
+
             return $item->quantity * $costPrice;
         });
 

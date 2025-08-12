@@ -18,7 +18,7 @@ class ProductVariant extends Model
         'upc',
         'price',
         'sale_price',
-        'stock',
+        'stock_quantity',
         'status',
     ];
 
@@ -32,10 +32,9 @@ class ProductVariant extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function attributeValues(): BelongsToMany
+    public function attributeValues()
     {
-        return $this->belongsToMany(AttributeValue::class, 'product_variant_values')
-            ->withPivot('attribute_id');
+        return $this->hasMany(ProductVariantValue::class);
     }
 
     public function orderItems()

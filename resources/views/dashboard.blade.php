@@ -1,4 +1,3 @@
-{{-- resources/views/admin/dashboard.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
@@ -54,6 +53,20 @@
         .badge-danger { background: var(--error-light); color: var(--error); }
         .badge-info { background: rgba(52, 152, 219, 0.1); color: #2980b9; }
 
+        .tier-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tier-bronze { background: var(--gray-light); color: var(--gray-dark); }
+        .tier-silver { background: #e8f4fd; color: #1565c0; }
+        .tier-gold { background: #fff8e1; color: #ef6c00; }
+        .tier-platinum { background: #f3e5f5; color: #7b1fa2; }
+
         .activity-item {
             padding: 1rem;
             border-bottom: 1px solid var(--border-light);
@@ -83,9 +96,7 @@
 
 @section('content')
     <div class="container-fluid">
-        {{-- Overview Cards Row --}}
         <div class="row g-3 mb-4">
-            {{-- Card 1: Doanh thu hôm nay --}}
             <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
                 <div class="card overview-card h-100">
                     <div class="card-body">
@@ -108,7 +119,6 @@
                 </div>
             </div>
 
-            {{-- Card 2: Đơn hàng hôm nay --}}
             <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
                 <div class="card overview-card h-100">
                     <div class="card-body">
@@ -218,64 +228,63 @@
         </div>
 
         {{-- Payment Methods & Customer Tiers Row --}}
-        <div class="row g-4 mb-4">
-            <div class="col-xl-4">
-                <div class="card">
+        <div class="row g-4 mb-4 d-flex">
+            <div class="col-xl-4 d-flex">
+                <div class="card w-100">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-credit-card me-2"></i>Phương thức thanh toán
                         </h5>
                     </div>
-                    <div class="card-body">
-                        <div class="chart-container" style="height: 200px;">
+                    <div class="card-body d-flex flex-column">
+                        <div class="chart-container flex-grow-1" style="height: 200px;">
                             <canvas id="paymentMethodChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-4">
-                <div class="card">
+            <div class="col-xl-4 d-flex">
+                <div class="card w-100">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-crown me-2"></i>Phân bố khách hàng
                         </h5>
                     </div>
-                    <div class="card-body">
-                        @foreach($analytics['customerTiers'] as $tier)
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div class="d-flex align-items-center">
-                            <span class="badge badge-{{ $tier['class'] }} me-2">
-                                {{ ucfirst($tier['tier']) }}
-                            </span>
-                                    <span>{{ $tier['count'] }} khách hàng</span>
+                    <div class="card-body d-flex flex-column">
+                        <div class="flex-grow-1">
+                            @foreach($analytics['customerTiers'] as $tier)
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex align-items-center">
+                                <span class="tier-badge tier-{{ $tier['class'] }} me-2">
+                                    {{ ucfirst($tier['tier']) }}
+                                </span>
+                                        <span>{{ $tier['count'] }} khách hàng</span>
+                                    </div>
+                                    <div class="progress" style="width: 100px; height: 8px;">
+                                        <div class="progress-bar bg-{{ $tier['class'] }}"
+                                             style="width: {{ $tier['percentage'] }}%"></div>
+                                    </div>
                                 </div>
-                                <div class="progress" style="width: 100px; height: 8px;">
-                                    <div class="progress-bar bg-{{ $tier['class'] }}"
-                                         style="width: {{ $tier['percentage'] }}%"></div>
-                                </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-4">
-                <div class="card">
+            <div class="col-xl-4 d-flex">
+                <div class="card w-100">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-bolt me-2"></i>Thao tác nhanh
                         </h5>
                     </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <a href="{{ route('pos') }}" class="btn btn-primary quick-action-btn">
-                                <i class="fas fa-cash-register me-2"></i>Mở POS
-                            </a>
-                            <a href="#products.create" class="btn btn-success quick-action-btn">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-grid gap-2 flex-grow-1">
+                            <a href="{{ route('products.create') }}" class="btn btn-success quick-action-btn">
                                 <i class="fas fa-plus me-2"></i>Thêm sản phẩm
                             </a>
-                            <a href="#customers.create" class="btn btn-info quick-action-btn">
+                            <a href="{{ route('customers.create') }}" class="btn btn-info quick-action-btn">
                                 <i class="fas fa-user-plus me-2"></i>Thêm khách hàng
                             </a>
                             <button class="btn btn-warning quick-action-btn" onclick="generateReport()">
@@ -290,21 +299,20 @@
             </div>
         </div>
 
-        {{-- Data Tables Row --}}
         <div class="row g-4 mb-4">
-            <div class="col-xl-8">
-                <div class="card">
+            <div class="col-xl-8 d-flex">
+                <div class="card flex-fill">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-receipt me-2"></i>Đơn hàng gần đây
                         </h5>
-                        <a href="#orders.index" class="btn btn-sm btn-outline-primary">
+                        <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-external-link-alt me-1"></i>Xem tất cả
                         </a>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
+                    <div class="card-body d-flex flex-column">
+                        <div class="table-responsive flex-grow-1">
+                            <table class="table table-hover mb-0">
                                 <thead>
                                 <tr>
                                     <th>Mã đơn</th>
@@ -344,19 +352,19 @@
                                         </td>
                                         <td class="fw-bold">{{ number_format($order->grand_total) }}đ</td>
                                         <td>
-                                        <span class="badge badge-{{ $order->status === 'completed' ? 'success' : ($order->status === 'pending' ? 'warning' : 'danger') }}">
-                                            @switch($order->status)
-                                                @case('completed') Hoàn thành @break
-                                                @case('pending') Chờ xử lý @break
-                                                @case('canceled') Đã hủy @break
-                                                @default {{ ucfirst($order->status) }}
-                                            @endswitch
-                                        </span>
+                                <span class="badge badge-{{ $order->status === 'completed' ? 'success' : ($order->status === 'pending' ? 'warning' : 'danger') }}">
+                                    @switch($order->status)
+                                        @case('completed') Hoàn thành @break
+                                        @case('pending') Chờ xử lý @break
+                                        @case('canceled') Đã hủy @break
+                                        @default {{ ucfirst($order->status) }}
+                                    @endswitch
+                                </span>
                                         </td>
                                         <td>
-                                        <span title="{{ $order->created_at->format('d/m/Y H:i:s') }}">
-                                            {{ $order->created_at->diffForHumans() }}
-                                        </span>
+                                <span title="{{ $order->created_at->format('d/m/Y H:i:s') }}">
+                                    {{ $order->created_at->diffForHumans() }}
+                                </span>
                                         </td>
                                     </tr>
                                 @empty
@@ -374,16 +382,16 @@
                 </div>
             </div>
 
-            <div class="col-xl-4">
-                <div class="card">
+            <div class="col-xl-4 d-flex">
+                <div class="card flex-fill">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-star me-2"></i>Sản phẩm bán chạy
                         </h5>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm">
+                    <div class="card-body d-flex flex-column">
+                        <div class="table-responsive flex-grow-1">
+                            <table class="table table-sm mb-0">
                                 <thead>
                                 <tr>
                                     <th>Sản phẩm</th>
@@ -417,9 +425,9 @@
                                             <span class="badge badge-success">{{ $product->total_sold }}</span>
                                         </td>
                                         <td>
-                                        <span class="badge badge-{{ $product->stock > 10 ? 'success' : ($product->stock > 0 ? 'warning' : 'danger') }}">
-                                            {{ $product->stock }}
-                                        </span>
+                                <span class="badge badge-{{ $product->stock > 10 ? 'success' : ($product->stock > 0 ? 'warning' : 'danger') }}">
+                                    {{ $product->stock }}
+                                </span>
                                         </td>
                                     </tr>
                                 @empty
@@ -439,112 +447,116 @@
 
         {{-- Alerts & Activity Row --}}
         <div class="row g-4">
-            <div class="col-xl-6">
-                <div class="card">
+            <div class="col-xl-6 d-flex">
+                <div class="card flex-fill">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-bell me-2"></i>Cảnh báo hệ thống
                         </h5>
                     </div>
-                    <div class="card-body">
-                        @if($analytics['lowStockProducts']->count() > 0)
-                            <div class="alert alert-warning">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <h6 class="mb-0">Sản phẩm sắp hết hàng ({{ $analytics['lowStockProducts']->count() }})</h6>
+                    <div class="card-body d-flex flex-column">
+                        <div class="flex-grow-1">
+                            @if($analytics['lowStockProducts']->count() > 0)
+                                <div class="alert alert-warning">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <h6 class="mb-0">Sản phẩm sắp hết hàng ({{ $analytics['lowStockProducts']->count() }})</h6>
+                                    </div>
+                                    <ul class="mb-0">
+                                        @foreach($analytics['lowStockProducts']->take(5) as $product)
+                                            <li>
+                                                <strong>{{ $product->product->name }}</strong>
+                                                @if($product->variant_name)
+                                                    ({{ $product->variant_name }})
+                                                @endif
+                                                - còn <span class="text-danger">{{ $product->stock }}</span> cái
+                                            </li>
+                                        @endforeach
+                                        @if($analytics['lowStockProducts']->count() > 5)
+                                            <li class="text-muted">... và {{ $analytics['lowStockProducts']->count() - 5 }} sản phẩm khác</li>
+                                        @endif
+                                    </ul>
                                 </div>
-                                <ul class="mb-0">
-                                    @foreach($analytics['lowStockProducts']->take(5) as $product)
-                                        <li>
-                                            <strong>{{ $product->product->name }}</strong>
-                                            @if($product->variant_name)
-                                                ({{ $product->variant_name }})
-                                            @endif
-                                            - còn <span class="text-danger">{{ $product->stock }}</span> cái
-                                        </li>
-                                    @endforeach
-                                    @if($analytics['lowStockProducts']->count() > 5)
-                                        <li class="text-muted">... và {{ $analytics['lowStockProducts']->count() - 5 }} sản phẩm khác</li>
-                                    @endif
-                                </ul>
-                            </div>
-                        @endif
+                            @endif
 
-                        @if($analytics['pendingOrders'] > 0)
-                            <div class="alert alert-info">
-                                <i class="fas fa-clock me-2"></i>
-                                Có <strong>{{ $analytics['pendingOrders'] }}</strong> đơn hàng đang chờ xử lý
-                                <a href="{{ route('orders.index', ['status' => 'pending']) }}" class="btn btn-sm btn-info ms-2">
-                                    Xem ngay
-                                </a>
-                            </div>
-                        @endif
+                            @if($analytics['pendingOrders'] > 0)
+                                <div class="alert alert-info">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Có <strong>{{ $analytics['pendingOrders'] }}</strong> đơn hàng đang chờ xử lý
+                                    <a href="{{ route('orders.index', ['status' => 'pending']) }}" class="btn btn-sm btn-info ms-2">
+                                        Xem ngay
+                                    </a>
+                                </div>
+                            @endif
 
-                        @if($analytics['failedPayments'] > 0)
-                            <div class="alert alert-danger">
-                                <i class="fas fa-credit-card me-2"></i>
-                                Có <strong>{{ $analytics['failedPayments'] }}</strong> giao dịch thanh toán thất bại hôm nay
-                            </div>
-                        @endif
+                            @if($analytics['failedPayments'] > 0)
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-credit-card me-2"></i>
+                                    Có <strong>{{ $analytics['failedPayments'] }}</strong> giao dịch thanh toán thất bại hôm nay
+                                </div>
+                            @endif
 
-                        @if($analytics['lowStockProducts']->count() == 0 && $analytics['pendingOrders'] == 0 && $analytics['failedPayments'] == 0)
-                            <div class="text-center py-4">
-                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                                <h6 class="text-success">Hệ thống hoạt động bình thường</h6>
-                                <p class="text-muted mb-0">Không có cảnh báo nào cần xử lý</p>
-                            </div>
-                        @endif
+                            @if($analytics['lowStockProducts']->count() == 0 && $analytics['pendingOrders'] == 0 && $analytics['failedPayments'] == 0)
+                                <div class="text-center py-4">
+                                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                    <h6 class="text-success">Hệ thống hoạt động bình thường</h6>
+                                    <p class="text-muted mb-0">Không có cảnh báo nào cần xử lý</p>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-6">
-                <div class="card">
+            <div class="col-xl-6 d-flex">
+                <div class="card flex-fill">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-history me-2"></i>Hoạt động gần đây
                         </h5>
                     </div>
-                    <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
-                        @forelse($analytics['recentActivities'] as $activity)
-                            <div class="activity-item">
-                                <div class="d-flex align-items-start">
-                                    <div class="activity-icon me-3">
-                                        @switch($activity['type'])
-                                            @case('order_created')
-                                                <i class="fas fa-plus-circle text-success"></i>
-                                                @break
-                                            @case('product_added')
-                                                <i class="fas fa-box text-info"></i>
-                                                @break
-                                            @case('customer_registered')
-                                                <i class="fas fa-user-plus text-primary"></i>
-                                                @break
-                                            @case('payment_completed')
-                                                <i class="fas fa-credit-card text-success"></i>
-                                                @break
-                                            @case('user_login')
-                                                <i class="fas fa-sign-in-alt text-muted"></i>
-                                                @break
-                                            @default
-                                                <i class="fas fa-info-circle text-muted"></i>
-                                        @endswitch
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="fw-bold mb-1">{{ $activity['description'] }}</div>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <small class="text-muted">{{ $activity['user'] }}</small>
-                                            <small class="text-muted">{{ $activity['time'] }}</small>
+                    <div class="card-body d-flex flex-column p-0">
+                        <div class="flex-grow-1" style="max-height: 400px; overflow-y: auto;">
+                            @forelse($analytics['recentActivities'] as $activity)
+                                <div class="activity-item p-3 border-bottom">
+                                    <div class="d-flex align-items-start">
+                                        <div class="activity-icon me-3">
+                                            @switch($activity['type'])
+                                                @case('order_created')
+                                                    <i class="fas fa-plus-circle text-success"></i>
+                                                    @break
+                                                @case('product_added')
+                                                    <i class="fas fa-box text-info"></i>
+                                                    @break
+                                                @case('customer_registered')
+                                                    <i class="fas fa-user-plus text-primary"></i>
+                                                    @break
+                                                @case('payment_completed')
+                                                    <i class="fas fa-credit-card text-success"></i>
+                                                    @break
+                                                @case('user_login')
+                                                    <i class="fas fa-sign-in-alt text-muted"></i>
+                                                    @break
+                                                @default
+                                                    <i class="fas fa-info-circle text-muted"></i>
+                                            @endswitch
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold mb-1">{{ $activity['description'] }}</div>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">{{ $activity['user'] }}</small>
+                                                <small class="text-muted">{{ $activity['time'] }}</small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        @empty
-                            <div class="text-center py-4">
-                                <i class="fas fa-history fa-2x text-muted mb-2"></i>
-                                <p class="text-muted mb-0">Chưa có hoạt động nào</p>
-                            </div>
-                        @endforelse
+                            @empty
+                                <div class="text-center py-4">
+                                    <i class="fas fa-history fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted mb-0">Chưa có hoạt động nào</p>
+                                </div>
+                            @endforelse
+                        </div>
                     </div>
                 </div>
             </div>
@@ -692,7 +704,7 @@
             document.getElementById('btn-' + period).classList.add('active');
 
             // Fetch new data
-            fetch(`/admin/dashboard/sales-chart?period=${period}`)
+            fetch(`/dashboard/sales-chart?period=${period}`)
                 .then(response => response.json())
                 .then(data => {
                     salesTrendChart.data.labels = data.labels;
@@ -711,7 +723,7 @@
                 'Xuất báo cáo',
                 'Bạn muốn xuất báo cáo nào?',
                 function() {
-                    window.location.href = '/admin/reports/generate';
+                    window.location.href = '/reports/generate';
                 }
             );
         }
@@ -721,7 +733,7 @@
                 'Sao lưu hệ thống',
                 'Thao tác này có thể mất vài phút. Bạn có chắc chắn muốn tiếp tục?',
                 function() {
-                    fetch('/admin/system/backup', {
+                    fetch('/system/backup', {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
@@ -744,7 +756,7 @@
 
         // Refresh dashboard data
         function refreshDashboardData() {
-            fetch('/admin/dashboard/refresh')
+            fetch('/dashboard/refresh')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -774,5 +786,149 @@
                 alert(message);
             }
         }
+
+        let salesChart = null;
+
+        // Initialize chart when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initSalesChart();
+            loadChartData('7days'); // Load default data
+        });
+
+        function initSalesChart() {
+            const ctx = document.getElementById('salesChart');
+            if (!ctx) return;
+
+            salesChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Doanh thu (VNĐ)',
+                        data: [],
+                        borderColor: 'rgb(139, 69, 19)',
+                        backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Xu hướng doanh thu'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return new Intl.NumberFormat('vi-VN').format(value) + 'đ';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadChartData(period) {
+            // Show loading state
+            showChartLoading(true);
+
+            fetch(`/dashboard/sales-chart?period=${period}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        updateChart(data.data);
+                        updateActiveButton(period);
+                    } else {
+                        throw new Error(data.message || 'Lỗi không xác định');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chart data:', error);
+                    showError('Lỗi tải dữ liệu biểu đồ: ' + error.message);
+                })
+                .finally(() => {
+                    showChartLoading(false);
+                });
+        }
+
+        function updateChart(chartData) {
+            if (!salesChart || !chartData) return;
+
+            salesChart.data.labels = chartData.labels;
+            salesChart.data.datasets[0].data = chartData.data;
+            salesChart.update('active');
+        }
+
+        function updateActiveButton(activePeriod) {
+            // Remove active class from all buttons
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+
+            // Add active class to clicked button
+            const activeBtn = document.querySelector(`[data-period="${activePeriod}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-primary');
+                activeBtn.classList.add('btn-primary', 'active');
+            }
+        }
+
+        function showChartLoading(show) {
+            const loadingEl = document.getElementById('chart-loading');
+            const chartEl = document.getElementById('salesChart');
+
+            if (show) {
+                if (loadingEl) loadingEl.style.display = 'block';
+                if (chartEl) chartEl.style.opacity = '0.5';
+            } else {
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (chartEl) chartEl.style.opacity = '1';
+            }
+        }
+
+        function showError(message) {
+            // Using SweetAlert2 if available
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: message,
+                    confirmButtonColor: '#8b4513'
+                });
+            } else {
+                alert(message);
+            }
+        }
+
+        // Event listeners for period buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('period-btn')) {
+                e.preventDefault();
+                const period = e.target.dataset.period;
+                loadChartData(period);
+            }
+        });
     </script>
 @endpush

@@ -8,7 +8,7 @@
 
         <div class="row">
             {{-- Product Search & Scanner --}}
-            <div class="col-lg-6">
+            <div class="col-lg-7">
                 <div class="pos-products">
                     <div class="card">
                         <div class="card-header">
@@ -109,7 +109,7 @@
             </div>
 
             {{-- Cart & Checkout --}}
-            <div class="col-lg-6">
+            <div class="col-lg-5">
                 <div class="pos-cart">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">

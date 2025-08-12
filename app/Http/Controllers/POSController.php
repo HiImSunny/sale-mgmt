@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\InventoryTransaction;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\VNPayQRService;
 use Exception;
@@ -28,9 +29,11 @@ class POSController extends Controller
 
     public function createOrder(Request $request)
     {
+        // ✅ FIXED: Validate for both product and variant
         $request->validate([
             'items' => 'required|array|min:1',
-            'items.*.variant_id' => 'required|exists:product_variants,id',
+            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.variant_id' => 'nullable|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'payment_method' => 'required|in:cash_at_counter,vnpay'
@@ -39,37 +42,86 @@ class POSController extends Controller
         DB::beginTransaction();
 
         try {
-            // Calculate totals và create order (existing code)
+            // Calculate totals và create order
             $subtotal = 0;
             $orderItems = [];
 
             foreach ($request->items as $item) {
-                $variant = ProductVariant::with(['product', 'attributeValues.attribute'])->find($item['variant_id']);
+                // ✅ FIXED: Handle both simple products and variants
+                if (isset($item['variant_id']) && $item['variant_id']) {
+                    // Handle variant
+                    $variant = ProductVariant::with(['product', 'attributeValues.attributeValue.attribute'])->find($item['variant_id']);
 
-                if ($variant->stock < $item['quantity']) {
+                    if (!$variant) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Variant không tồn tại'
+                        ], 400);
+                    }
+
+                    if ($variant->stock_quantity < $item['quantity']) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Sản phẩm {$variant->product->name} không đủ tồn kho. Còn lại: {$variant->stock_quantity}"
+                        ], 400);
+                    }
+
+                    $lineTotal = $item['quantity'] * $item['unit_price'];
+                    $subtotal += $lineTotal;
+
+                    $orderItems[] = [
+                        'type' => 'variant',
+                        'variant' => $variant,
+                        'product' => $variant->product,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'line_total' => $lineTotal
+                    ];
+
+                } elseif (isset($item['product_id']) && $item['product_id']) {
+                    // Handle simple product
+                    $product = Product::find($item['product_id']);
+
+                    if (!$product || $product->has_variants) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Sản phẩm không tồn tại hoặc có biến thể'
+                        ], 400);
+                    }
+
+                    if ($product->stock_quantity < $item['quantity']) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Sản phẩm {$product->name} không đủ tồn kho. Còn lại: {$product->stock_quantity}"
+                        ], 400);
+                    }
+
+                    $lineTotal = $item['quantity'] * $item['unit_price'];
+                    $subtotal += $lineTotal;
+
+                    $orderItems[] = [
+                        'type' => 'product',
+                        'product' => $product,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'line_total' => $lineTotal
+                    ];
+                } else {
                     return response()->json([
                         'success' => false,
-                        'message' => "Sản phẩm {$variant->variant_name} không đủ tồn kho. Còn lại: {$variant->stock}"
+                        'message' => 'Phải có product_id hoặc variant_id'
                     ], 400);
                 }
-
-                $lineTotal = $item['quantity'] * $item['unit_price'];
-                $subtotal += $lineTotal;
-
-                $orderItems[] = [
-                    'variant' => $variant,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'line_total' => $lineTotal
-                ];
             }
 
             // Create order
             $order = Order::create([
                 'user_id' => Auth::id(),
+                'code' => $this->generateOrderCode('POS'),
                 'payment_method' => $request->payment_method,
                 'payment_status' => 'unpaid',
                 'status' => 'pending',
+                'type' => 'sale',
                 'subtotal' => $subtotal,
                 'discount_total' => 0,
                 'grand_total' => $subtotal,
@@ -78,26 +130,44 @@ class POSController extends Controller
 
             // Create order items
             foreach ($orderItems as $itemData) {
-                $variant = $itemData['variant'];
+                if ($itemData['type'] === 'variant') {
+                    // Variant order item
+                    $variant = $itemData['variant'];
 
-                $attributesSnapshot = $variant->attributeValues->map(function ($attrValue) {
-                    return [
-                        'attribute_name' => $attrValue->attribute->name,
-                        'value' => $attrValue->value
-                    ];
-                })->toArray();
+                    $attributesSnapshot = $variant->attributeValues->map(function ($attrValue) {
+                        return [
+                            'attribute_name' => $attrValue->attributeValue->attribute->name,
+                            'value' => $attrValue->attributeValue->value
+                        ];
+                    })->toArray();
 
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $variant->product_id,
-                    'product_variant_id' => $variant->id,
-                    'name_snapshot' => $variant->variant_name,
-                    'sku_snapshot' => $variant->sku,
-                    'unit_price' => $itemData['unit_price'],
-                    'quantity' => $itemData['quantity'],
-                    'line_total' => $itemData['line_total'],
-                    'attributes_snapshot' => $attributesSnapshot
-                ]);
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $variant->product_id,
+                        'product_variant_id' => $variant->id,
+                        'name_snapshot' => $variant->product->name,
+                        'sku_snapshot' => $variant->sku,
+                        'unit_price' => $itemData['unit_price'],
+                        'quantity' => $itemData['quantity'],
+                        'line_total' => $itemData['line_total'],
+                        'attributes_snapshot' => json_encode($attributesSnapshot)
+                    ]);
+                } else {
+                    // Simple product order item
+                    $product = $itemData['product'];
+
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $product->id,
+                        'product_variant_id' => null,
+                        'name_snapshot' => $product->name,
+                        'sku_snapshot' => $product->sku,
+                        'unit_price' => $itemData['unit_price'],
+                        'quantity' => $itemData['quantity'],
+                        'line_total' => $itemData['line_total'],
+                        'attributes_snapshot' => json_encode([])
+                    ]);
+                }
             }
 
             DB::commit();
@@ -211,6 +281,7 @@ class POSController extends Controller
         ], 400);
     }
 
+    // ✅ FIXED: Handle both simple products and variants
     private function confirmOrderAndReduceStock(Order $order)
     {
         // Chuyển trạng thái đơn hàng
@@ -219,21 +290,32 @@ class POSController extends Controller
         // Trừ kho và ghi inventory transaction
         foreach ($order->items as $item) {
             if ($item->product_variant_id) {
+                // Handle variant inventory
                 $variant = $item->productVariant;
 
-                // Trừ kho
-                $variant->decrement('stock', $item->quantity);
+                // ✅ FIXED: Use stock_quantity instead of stock
+                $variant->decrement('stock_quantity', $item->quantity);
 
                 // Ghi inventory transaction
                 InventoryTransaction::create([
                     'product_variant_id' => $variant->id,
                     'type' => 'out',
-                    'qty' => -$item->quantity,
+                    'qty' => $item->quantity, // ✅ FIXED: Positive quantity for 'out' transaction
                     'reference_type' => 'order',
                     'reference_id' => $order->id,
                     'user_id' => Auth::id(),
                     'note' => "Bán hàng POS - Đơn {$order->code}"
                 ]);
+            } elseif ($item->product_id) {
+                // ✅ FIXED: Handle simple product inventory
+                $product = Product::find($item->product_id);
+
+                if ($product && !$product->has_variants) {
+                    $product->decrement('stock_quantity', $item->quantity);
+
+                    // Note: You might want to create inventory transaction for products too
+                    // Or create a separate table for product inventory transactions
+                }
             }
         }
     }
@@ -243,8 +325,8 @@ class POSController extends Controller
         $query = $request->get('q');
 
         $orders = Order::with(['items'])
-            ->scopeSales() // Chỉ lấy đơn bán hàng
-            ->where('status', 'confirmed')
+            ->where('type', 'sale') // ✅ FIXED: Use direct where instead of scope
+            ->where('status', 'completed') // ✅ FIXED: Use 'completed' instead of 'confirmed'
             ->where('payment_status', 'paid')
             ->where(function ($q) use ($query) {
                 $q->where('code', 'like', "%{$query}%")
@@ -274,8 +356,8 @@ class POSController extends Controller
     public function getOrderDetails($orderId)
     {
         $order = Order::with(['items.productVariant'])
-            ->sales()
-            ->where('status', 'confirmed')
+            ->where('type', 'sale') // ✅ FIXED: Use direct where instead of scope
+            ->where('status', 'completed') // ✅ FIXED: Use 'completed' instead of 'confirmed'
             ->where('payment_status', 'paid')
             ->find($orderId);
 
@@ -329,7 +411,8 @@ class POSController extends Controller
         try {
             $parentOrder = Order::findOrFail($request->parent_order_id);
 
-            if (!$parentOrder->canBeRefunded()) {
+            // ✅ FIXED: Basic validation instead of canBeRefunded method
+            if ($parentOrder->type !== 'sale' || $parentOrder->status !== 'completed') {
                 throw new Exception('Đơn hàng không thể hoàn trả');
             }
 
@@ -364,9 +447,10 @@ class POSController extends Controller
                 'type' => 'refund',
                 'parent_order_id' => $parentOrder->id,
                 'user_id' => Auth::id(),
+                'code' => $this->generateOrderCode('RF'),
                 'payment_method' => $request->payment_method,
                 'payment_status' => 'paid', // Refund is immediately "paid"
-                'status' => 'confirmed',
+                'status' => 'completed', // ✅ FIXED: Use 'completed' instead of 'confirmed'
                 'subtotal' => $refundTotal,
                 'grand_total' => $refundTotal,
                 'refund_reason' => $request->refund_reason,
@@ -374,7 +458,7 @@ class POSController extends Controller
                 'notes' => 'Hoàn trả từ POS - Đơn gốc: ' . $parentOrder->code
             ]);
 
-            // Create refund order items
+            // Create refund order items and restore inventory
             foreach ($refundItems as $itemData) {
                 $originalItem = $itemData['original_item'];
 
@@ -390,10 +474,11 @@ class POSController extends Controller
                     'attributes_snapshot' => $originalItem->attributes_snapshot
                 ]);
 
-                // Restore inventory
+                // ✅ FIXED: Restore inventory for both variants and simple products
                 if ($originalItem->product_variant_id) {
+                    // Handle variant inventory
                     $variant = $originalItem->productVariant;
-                    $variant->increment('stock', $itemData['quantity']);
+                    $variant->increment('stock_quantity', $itemData['quantity']);
 
                     // Create inventory transaction
                     InventoryTransaction::create([
@@ -405,6 +490,13 @@ class POSController extends Controller
                         'user_id' => Auth::id(),
                         'note' => "Hoàn trả - #{$refundOrder->code}"
                     ]);
+                } elseif ($originalItem->product_id) {
+                    // ✅ FIXED: Handle simple product inventory
+                    $product = Product::find($originalItem->product_id);
+
+                    if ($product && !$product->has_variants) {
+                        $product->increment('stock_quantity', $itemData['quantity']);
+                    }
                 }
             }
 
@@ -427,5 +519,15 @@ class POSController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    // ✅ NEW: Helper method to generate order codes
+    private function generateOrderCode($prefix = 'POS')
+    {
+        do {
+            $code = $prefix . date('Ymd') . rand(1000, 9999);
+        } while (Order::where('code', $code)->exists());
+
+        return $code;
     }
 }

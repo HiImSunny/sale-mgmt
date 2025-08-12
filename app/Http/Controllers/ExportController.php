@@ -184,7 +184,6 @@ class ExportController extends Controller
         $statuses = [
             'pending' => 'Chờ xử lý',
             'confirmed' => 'Đã xác nhận',
-            'shipping' => 'Đang giao',
             'completed' => 'Hoàn thành',
             'canceled' => 'Đã hủy'
         ];
@@ -208,7 +207,6 @@ class ExportController extends Controller
         $methods = [
             'cash_at_counter' => 'Tiền mặt',
             'vnpay' => 'VNPAY',
-            'cod' => 'COD'
         ];
 
         return $methods[$method] ?? $method;
