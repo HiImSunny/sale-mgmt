@@ -7,7 +7,6 @@
     <div class="container-fluid">
 
         <div class="row">
-            {{-- Product Search & Scanner --}}
             <div class="col-lg-7">
                 <div class="pos-products">
                     <div class="card">
@@ -19,49 +18,10 @@
                                         Tìm kiếm sản phẩm
                                     </h4>
                                 </div>
-                                <div class="col-auto">
-                                    <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-primary" id="sale-mode" onclick="switchMode('sale')">
-                                            <i class="fas fa-shopping-cart me-1"></i>Bán hàng
-                                        </button>
-                                        <button type="button" class="btn btn-outline-warning" id="refund-mode" onclick="switchMode('refund')">
-                                            <i class="fas fa-undo me-1"></i>Hoàn trả
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
                         <div class="card-body">
-                            {{-- Refund Section --}}
-                            <div id="refund-section" style="display: none;">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Chế độ hoàn trả:</strong> Tìm đơn hàng cần hoàn trả bằng cách nhập mã đơn hàng
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Tìm đơn hàng cần hoàn trả</label>
-                                    <div class="input-group">
-                                        <input type="text" id="refund-order-search" class="form-control"
-                                               placeholder="Nhập mã đơn hàng hoặc ID...">
-                                        <button type="button" class="btn btn-primary" onclick="searchRefundOrder()">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </div>
-                                    <div id="refund-order-results" class="mt-2"></div>
-                                </div>
-
-                                <div id="selected-refund-order" style="display: none;">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6>Đơn hàng được chọn</h6>
-                                            <div id="refund-order-details"></div>
-                                            <div id="refund-order-items" class="mt-3"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             {{-- Search Bar --}}
                             <div class="search-section mb-3">
@@ -180,9 +140,7 @@
 
 
 @push('scripts')
-    {{-- Include QRCode.js for generating QR codes --}}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    {{-- Include the main POS JavaScript file --}}
     <script src="{{ asset('js/pos.js') }}"></script>
 @endpush

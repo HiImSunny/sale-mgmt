@@ -40,10 +40,10 @@ class VNPayController extends Controller
             }
 
             if ($vnp_ResponseCode == '00') {
-                // Payment success
-                DB::transaction(function () use ($order) {
-                    $this->processSuccessfulPayment($order);
-                });
+//                // Payment success
+//                DB::transaction(function () use ($order) {
+//                    $this->processSuccessfulPayment($order);
+//                });
 
                 return $this->returnResponse($source, true, 'Thanh toán thành công', $order);
             } else {
@@ -87,24 +87,23 @@ class VNPayController extends Controller
             $vnp_ResponseCode = $request->get('vnp_ResponseCode');
             $vnp_TxnRef = $request->get('vnp_TxnRef');
 
-            // Verify signature
             if (!$this->vnpayService->verifyPayment($request)) {
                 return response()->json(['RspCode' => '97', 'Message' => 'Invalid signature']);
             }
 
             // Get order
-            $order = $this->getOrderFromTxnRef($vnp_TxnRef); // ✅ FIXED: Use local method instead of service method
+            $order = $this->getOrderFromTxnRef($vnp_TxnRef);
 
             if (!$order) {
                 return response()->json(['RspCode' => '01', 'Message' => 'Order not found']);
             }
 
             if ($vnp_ResponseCode == '00') {
-                if ($order->payment_status !== 'paid') {
-                    DB::transaction(function () use ($order) {
-                        $this->processSuccessfulPayment($order);
-                    });
-                }
+//                if ($order->payment_status !== 'paid') {
+//                    DB::transaction(function () use ($order) {
+//                        $this->processSuccessfulPayment($order);
+//                    });
+//                }
                 return response()->json(['RspCode' => '00', 'Message' => 'Success']);
             } else {
                 $order->update(['payment_status' => 'failed']);
@@ -159,30 +158,21 @@ class VNPayController extends Controller
                 $product = Product::find($item->product_id);
 
                 if ($product && !$product->has_variants) {
-                    // Check stock availability
                     if ($product->stock_quantity < $item->quantity) {
                         Log::warning("Insufficient stock for product {$product->id}. Available: {$product->stock_quantity}, Required: {$item->quantity}");
-                        // Continue processing but log warning
                     }
-
-                    // Reduce inventory
                     $product->decrement('stock_quantity', $item->quantity);
 
                     Log::info("VNPay payment processed - Product {$product->id} stock reduced by {$item->quantity} (Order: {$order->code})");
-
-                    // Note: You might want to create inventory transaction for products too
-                    // if you need to track simple product inventory changes
                 }
             }
         }
 
-        // ✅ ADDED: Update customer stats if customer exists
         if ($order->customer) {
             $this->updateCustomerStats($order->customer);
         }
     }
 
-    // ✅ ADDED: Helper method to update customer statistics
     private function updateCustomerStats($customer)
     {
         try {
@@ -213,7 +203,6 @@ class VNPayController extends Controller
         }
     }
 
-    // ✅ ADDED: Helper method to update customer tier
     private function updateCustomerTier($customer)
     {
         $oldTier = $customer->customer_tier;

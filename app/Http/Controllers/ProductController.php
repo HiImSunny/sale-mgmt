@@ -20,7 +20,6 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        // Statistics với logic mới
         $stats = [
             'total' => Product::count(),
             'active' => Product::where('status', 1)->count(),

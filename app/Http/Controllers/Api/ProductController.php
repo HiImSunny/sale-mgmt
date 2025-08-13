@@ -58,6 +58,7 @@ class ProductController extends Controller
                     'variant_name' => $variant->product->name,
                     'sku' => $variant->sku,
                     'price' => $variant->price,
+                    'sale_price' => $variant->sale_price,
                     'stock_quantity' => $variant->stock_quantity,
                     'attributes' => $attributes,
                     'thumbnail' => $variant->product->images->first()?->image_url
@@ -97,6 +98,7 @@ class ProductController extends Controller
                         'id' => $variant->id,
                         'sku' => $variant->sku,
                         'price' => $variant->price,
+                        'sale_price' => $variant->sale_price,
                         'stock_quantity' => $variant->stock_quantity,
                         'attributes' => $attributes
                     ];
@@ -126,6 +128,7 @@ class ProductController extends Controller
                     'name' => $product->name,
                     'sku' => $product->sku,
                     'price' => $product->price,
+                    'sale_price' => $product->sale_price,
                     'stock_quantity' => $product->stock_quantity,
                     'thumbnail' => $product->images->first()?->image_url
                         ? asset('storage/' . $product->images->first()->image_url)
@@ -203,6 +206,7 @@ class ProductController extends Controller
                         'variant_name' => $variant->product->name . ($attributes ? " ({$attributes})" : ''),
                         'sku' => $variant->sku,
                         'price' => $variant->price,
+                        'sale_price' => $variant->sale_price,
                         'stock_quantity' => $variant->stock_quantity,
                         'category' => $categoryName,
                         'attributes' => $attributes,
@@ -246,6 +250,7 @@ class ProductController extends Controller
                         'variant_name' => $product->name,
                         'sku' => $product->sku,
                         'price' => $product->price,
+                        'sale_price' => $product->sale_price,
                         'stock_quantity' => $product->stock_quantity,
                         'category' => $categoryName,
                         'attributes' => '',
