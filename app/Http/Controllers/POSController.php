@@ -185,7 +185,7 @@ class POSController extends Controller
 
             // Nếu thanh toán VNPay, mở VnPayModal
             if ($request->payment_method === 'vnpay') {
-                $qrData = $this->vnpayQRService->generateQRCode(
+                $qrData = $this->vnpayQRService->generateVNPayLink(
                     $order->id,
                     $order->grand_total,
                     "Thanh toán đơn hàng POS #{$order->code}"

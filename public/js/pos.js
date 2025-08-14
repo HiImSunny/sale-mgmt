@@ -750,7 +750,7 @@ function showVNPayQRModal(qrData) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="openVNPayWindow('${qrData.qr_url}')">
+                    <button type="button" class="btn btn-primary" onclick="openVNPayWindow('${qrData.url}')">
                         <i class="fas fa-external-link-alt me-2"></i>
                         Mở cửa sổ thanh toán
                     </button>
@@ -777,7 +777,7 @@ function showVNPayQRModal(qrData) {
     const modal = new bootstrap.Modal(document.getElementById('vnpayQRModal'));
     modal.show();
 
-    openVNPayWindow(qrData.qr_url);
+    openVNPayWindow(qrData.url);
 }
 
 function openVNPayWindow(paymentUrl) {

@@ -47,27 +47,25 @@ class ProductController extends Controller
 
         $query = Product::with(['categories', 'images', 'variants']);
 
-        // Search
+        // ✅ FIXED: Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('sku', 'LIKE', "%{$search}%");
             });
         }
 
-        // Filter by category
-        if ($request->has('categories') && $request->categories) {
-            $query->where('category_id', $request->categories);
+        if ($request->has('category') && $request->category) {
+            $query->whereHas('categories', function($q) use ($request) {
+                $q->where('categories.id', $request->category);
+            });
         }
 
-        // Filter by status
-        if ($request->has('status') && $request->status !== '') {
+        if ($request->has('status') && $request->status !== '' && $request->status !== null) {
             $query->where('status', $request->status);
         }
 
-        // Filter by stock
         if ($request->has('stock') && $request->stock !== '') {
             if ($request->stock === 'in_stock') {
                 $query->where(function($q) {
@@ -92,7 +90,6 @@ class ProductController extends Controller
             }
         }
 
-        // Sorting
         $sort = $request->get('sort', 'created_at');
         $direction = $request->get('direction', 'desc');
 
@@ -104,15 +101,21 @@ class ProductController extends Controller
                 $query->orderBy('price', $direction);
                 break;
             case 'stock':
-                // Complex sorting for stock considering variants
-                $query->selectRaw('
-                    product.*,
-                    CASE
-                        WHEN product.has_variants = 1
-                        THEN COALESCE((SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = product.id), 0)
-                        ELSE product.stock_quantity
-                    END as total_stock
-                ')->orderBy('total_stock', $direction);
+                $query->addSelect([
+                    'total_stock' => function($subQuery) {
+                        $subQuery->selectRaw('
+                        CASE
+                            WHEN products.has_variants = 1
+                            THEN COALESCE((
+                                SELECT SUM(stock_quantity)
+                                FROM product_variants
+                                WHERE product_variants.product_id = products.id
+                            ), 0)
+                            ELSE products.stock_quantity
+                        END
+                    ');
+                    }
+                ])->orderBy('total_stock', $direction);
                 break;
             case 'created_at':
             default:
@@ -303,57 +306,64 @@ class ProductController extends Controller
 
     public function export(Request $request)
     {
-        $query = Product::with(['categories', 'variants']);
+        // Determine if exporting selected products or all with filters
+        if ($request->has('product_ids')) {
+            $products = Product::with(['categories', 'variants'])
+                ->whereIn('id', $request->product_ids)
+                ->get();
+        } else {
+            $query = Product::with(['categories', 'variants']);
 
-        // Apply same filters as index
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->has('categories') && $request->categories) {
-            $query->where('category_id', $request->categories);
-        }
-
-        if ($request->has('status') && $request->status !== '') {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('stock') && $request->stock !== '') {
-            if ($request->stock === 'in_stock') {
-                $query->where(function($q) {
-                    $q->where('has_variants', false)->where('stock_quantity', '>', 0)
-                        ->orWhere(function($subQ) {
-                            $subQ->where('has_variants', true)
-                                ->whereHas('variants', function($v) {
-                                    $v->where('stock_quantity', '>', 0);
-                                });
-                        });
-                });
-            } elseif ($request->stock === 'out_of_stock') {
-                $query->where(function($q) {
-                    $q->where('has_variants', false)->where('stock_quantity', 0)
-                        ->orWhere(function($subQ) {
-                            $subQ->where('has_variants', true)
-                                ->whereDoesntHave('variants', function($v) {
-                                    $v->where('stock_quantity', '>', 0);
-                                });
-                        });
+            // Apply filters
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
                 });
             }
+
+            if ($request->has('category') && $request->category) {
+                $query->whereHas('categories', function($q) use ($request) {
+                    $q->where('categories.id', $request->category);
+                });
+            }
+
+            if ($request->has('status') && $request->status !== '') {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->has('stock') && $request->stock !== '') {
+                if ($request->stock === 'in_stock') {
+                    $query->where(function($q) {
+                        $q->where('has_variants', false)->where('stock_quantity', '>', 0)
+                            ->orWhere(function($subQ) {
+                                $subQ->where('has_variants', true)
+                                    ->whereHas('variants', function($v) {
+                                        $v->where('stock_quantity', '>', 0);
+                                    });
+                            });
+                    });
+                } elseif ($request->stock === 'out_of_stock') {
+                    $query->where(function($q) {
+                        $q->where('has_variants', false)->where('stock_quantity', 0)
+                            ->orWhere(function($subQ) {
+                                $subQ->where('has_variants', true)
+                                    ->whereDoesntHave('variants', function($v) {
+                                        $v->where('stock_quantity', '>', 0);
+                                    });
+                            });
+                    });
+                }
+            }
+
+            $products = $query->get();
         }
 
-        $products = $query->get();
-
-        // Create spreadsheet
-        $spreadsheet = new Spreadsheet();
+        // Create Excel file
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-
-        // Set sheet title
         $sheet->setTitle('Danh sách sản phẩm');
 
         // Headers
@@ -361,59 +371,32 @@ class ProductController extends Controller
             'A1' => 'ID',
             'B1' => 'Tên sản phẩm',
             'C1' => 'SKU',
-            'D1' => 'Danh mục',
-            'E1' => 'Giá (VNĐ)',
-            'F1' => 'Tồn kho',
-            'G1' => 'Có biến thể',
-            'H1' => 'Số biến thể',
-            'I1' => 'Trạng thái',
-            'J1' => 'Ngày tạo'
+            'D1' => 'EAN13',
+            'E1' => 'UPC',
+            'F1' => 'Danh mục',
+            'G1' => 'Giá gốc (VNĐ)',
+            'H1' => 'Giá khuyến mãi (VNĐ)',
+            'I1' => 'Tồn kho',
+            'J1' => 'Có biến thể',
+            'K1' => 'Số biến thể',
+            'L1' => 'Trạng thái',
+            'M1' => 'Ngày tạo'
         ];
 
-        // Set headers
         foreach ($headers as $cell => $value) {
             $sheet->setCellValue($cell, $value);
         }
 
         // Style headers
         $headerStyle = [
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-                'size' => 12
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => 'AE8269']
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER
-            ],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => 'E5E2DF']
-                ]
-            ]
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '0d6efd']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
         ];
-
-        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:M1')->applyFromArray($headerStyle);
 
         // Set column widths
-        $columnWidths = [
-            'A' => 8,  // ID
-            'B' => 30, // Tên sản phẩm
-            'C' => 15, // SKU
-            'D' => 20, // Danh mục
-            'E' => 15, // Giá
-            'F' => 12, // Tồn kho
-            'G' => 12, // Có biến thể
-            'H' => 12, // Số biến thể
-            'I' => 15, // Trạng thái
-            'J' => 18  // Ngày tạo
-        ];
-
+        $columnWidths = ['A' => 8, 'B' => 30, 'C' => 15, 'D' => 15, 'E' => 15, 'F' => 20, 'G' => 15, 'H' => 15, 'I' => 12, 'J' => 12, 'K' => 12, 'L' => 15, 'M' => 18];
         foreach ($columnWidths as $column => $width) {
             $sheet->getColumnDimension($column)->setWidth($width);
         }
@@ -421,90 +404,36 @@ class ProductController extends Controller
         // Add data
         $row = 2;
         foreach ($products as $product) {
+            $totalStock = $product->has_variants ? $product->variants->sum('stock_quantity') : $product->stock_quantity;
+            $categoryName = $product->categories->first()->name ?? 'Chưa phân loại';
+
             $sheet->setCellValue('A' . $row, $product->id);
             $sheet->setCellValue('B' . $row, $product->name);
             $sheet->setCellValue('C' . $row, $product->sku);
-            $sheet->setCellValue('D' . $row, $product->categories ? $product->categories->name : 'Chưa phân loại');
-            $sheet->setCellValue('E' . $row, number_format($product->price, 0, ',', '.'));
-            $sheet->setCellValue('F' . $row, $product->total_stock);
-            $sheet->setCellValue('G' . $row, $product->has_variants ? 'Có' : 'Không');
-            $sheet->setCellValue('H' . $row, $product->variants->count());
-            $sheet->setCellValue('I' . $row, $product->status === 'active' ? 'Hoạt động' : 'Không hoạt động');
-            $sheet->setCellValue('J' . $row, $product->created_at->format('d/m/Y H:i:s'));
+            $sheet->setCellValue('D' . $row, $product->ean13 ?? '');
+            $sheet->setCellValue('E' . $row, $product->upc ?? '');
+            $sheet->setCellValue('F' . $row, $categoryName);
+            $sheet->setCellValue('G' . $row, $product->price);
+            $sheet->setCellValue('H' . $row, $product->sale_price ?? '');
+            $sheet->setCellValue('I' . $row, $totalStock);
+            $sheet->setCellValue('J' . $row, $product->has_variants ? 'Có' : 'Không');
+            $sheet->setCellValue('K' . $row, $product->variants->count());
+            $sheet->setCellValue('L' . $row, $product->status === 1 ? 'Hoạt động' : 'Không hoạt động');
+            $sheet->setCellValue('M' . $row, $product->created_at->format('d/m/Y H:i:s'));
 
             $row++;
         }
 
-        // Style data rows
-        if ($row > 2) {
-            $dataStyle = [
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_LEFT,
-                    'vertical' => Alignment::VERTICAL_CENTER
-                ],
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['rgb' => 'E5E2DF']
-                    ]
-                ]
-            ];
-
-            $sheet->getStyle('A2:J' . ($row - 1))->applyFromArray($dataStyle);
-
-            // Center align for numeric columns
-            $numericStyle = [
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical' => Alignment::VERTICAL_CENTER
-                ]
-            ];
-
-            $sheet->getStyle('A2:A' . ($row - 1))->applyFromArray($numericStyle); // ID
-            $sheet->getStyle('F2:H' . ($row - 1))->applyFromArray($numericStyle); // Tồn kho, Có biến thể, Số biến thể
-
-            // Alternate row colors
-            for ($i = 2; $i < $row; $i++) {
-                if ($i % 2 == 0) {
-                    $sheet->getStyle('A' . $i . ':J' . $i)->applyFromArray([
-                        'fill' => [
-                            'fillType' => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'F8F6F4']
-                        ]
-                    ]);
-                }
-            }
-        }
-
-        // Add summary information
-        $summaryRow = $row + 2;
-        $sheet->setCellValue('A' . $summaryRow, 'Thống kê:');
-        $sheet->setCellValue('A' . ($summaryRow + 1), 'Tổng số sản phẩm: ' . $products->count());
-        $sheet->setCellValue('A' . ($summaryRow + 2), 'Sản phẩm hoạt động: ' . $products->where('status', 1)->count());
-        $sheet->setCellValue('A' . ($summaryRow + 3), 'Sản phẩm có biến thể: ' . $products->where('has_variants', true)->count());
-        $sheet->setCellValue('A' . ($summaryRow + 4), 'Ngày xuất: ' . now()->format('d/m/Y H:i:s'));
-
-        // Style summary
-        $summaryStyle = [
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => '5D524E']
-            ]
-        ];
-        $sheet->getStyle('A' . $summaryRow . ':A' . ($summaryRow + 4))->applyFromArray($summaryStyle);
-
-        // Set row height for header
-        $sheet->getRowDimension(1)->setRowHeight(25);
-
-        // Create filename
+        // Create filename and save
         $filename = 'danh_sach_san_pham_' . date('Y-m-d_H-i-s') . '.xlsx';
 
-        // Create writer and save to temporary file
-        $writer = new Xlsx($spreadsheet);
-        $tempFile = tempnam(sys_get_temp_dir(), 'products_export');
-        $writer->save($tempFile);
+        // Set proper headers for Excel download
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
 
-        // Return download response
-        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
     }
 }

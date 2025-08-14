@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductVariantController;
 use App\Http\Controllers\POSController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\VNPayController;
@@ -40,12 +41,23 @@ Route::middleware(['auth', 'role:seller,admin'])->group(function () {
     Route::post('/orders/{order}/refund', [OrderController::class, 'createRefund'])->name('orders.create-refund');
 
     Route::resource('products', ProductController::class);
-    Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage'])
-        ->name('products.images.delete');
-    Route::post('products/bulk-delete', [ProductController::class, 'bulkDelete'])
-        ->name('products.bulk-delete');
-    Route::get('products-export', [ProductController::class, 'export'])
-        ->name('products.export');
+
+    Route::post('products/bulk-delete', [ProductController::class, 'bulkDelete'])->name('products.bulk-delete');
+    Route::get('products/export', [ProductController::class, 'export'])->name('products.export');
+    Route::post('products/export', [ProductController::class, 'export'])->name('products.export.selected'); // For selected items
+    Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->name('products.images.delete');
+
+    Route::prefix('products/{product}')->group(function () {
+        Route::get('variants', [ProductVariantController::class, 'index'])->name('product-variants.index');
+        Route::get('variants/create', [ProductVariantController::class, 'create'])->name('product-variants.create');
+        Route::post('variants', [ProductVariantController::class, 'store'])->name('product-variants.store');
+    });
+
+    Route::prefix('product-variants')->group(function () {
+        Route::get('{variant}/edit', [ProductVariantController::class, 'edit'])->name('product-variants.edit');
+        Route::put('{variant}', [ProductVariantController::class, 'update'])->name('product-variants.update');
+        Route::delete('{variant}', [ProductVariantController::class, 'destroy'])->name('product-variants.destroy');
+    });
 });
 
 Route::middleware(['auth'])->group(function () {

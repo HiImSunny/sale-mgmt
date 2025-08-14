@@ -125,4 +125,8 @@ class Order extends Model
     {
         return $this->grand_total - $this->getTotalRefundedAmount();
     }
+
+    public function categories() {
+        return $this->belongsToMany(Category::class);
+    }
 }

@@ -425,8 +425,8 @@
                                             <span class="badge badge-success">{{ $product->total_sold }}</span>
                                         </td>
                                         <td>
-                                <span class="badge badge-{{ $product->stock > 10 ? 'success' : ($product->stock > 0 ? 'warning' : 'danger') }}">
-                                    {{ $product->stock }}
+                                <span class="badge badge-{{ $product->stock_quantity > 10 ? 'success' : ($product->stock_quantity > 0 ? 'warning' : 'danger') }}">
+                                    {{ $product->stock_quantity }}
                                 </span>
                                         </td>
                                     </tr>
@@ -469,7 +469,7 @@
                                                 @if($product->variant_name)
                                                     ({{ $product->variant_name }})
                                                 @endif
-                                                - còn <span class="text-danger">{{ $product->stock }}</span> cái
+                                                - còn <span class="text-danger">{{ $product->stock_quantity }}</span> cái
                                             </li>
                                         @endforeach
                                         @if($analytics['lowStockProducts']->count() > 5)

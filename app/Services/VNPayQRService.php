@@ -18,10 +18,10 @@ class VNPayQRService
         $this->vnp_Url = config('services.vnpay.url');
     }
 
-    public function generateQRCode($orderId, $amount, $description = 'Thanh toán đơn hàng POS')
+    public function generateVNPayLink($orderId, $amount, $description = 'Thanh toán đơn hàng POS')
     {
         $vnp_TxnRef = 'POS_' . $orderId . '_' . time();
-        $vnp_Amount = $amount * 100; // VNPay expects amount in smallest currency unit
+        $vnp_Amount = $amount * 100;
 
         $inputData = [
             "vnp_Version" => "2.1.0",
@@ -58,7 +58,7 @@ class VNPayQRService
         $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
 
         return [
-            'qr_url' => $vnp_Url,
+            'url' => $vnp_Url,
             'txn_ref' => $vnp_TxnRef,
             'amount' => $vnp_Amount / 100
         ];
