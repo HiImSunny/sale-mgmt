@@ -25,7 +25,9 @@ class ProductController extends Controller
         $variant = ProductVariant::with(['product.images', 'attributeValues.attributeValue.attribute'])
             ->where(function($q) use ($code) {
                 $q->where('sku', $code)
-                    ->orWhere('sku', 'LIKE', "%{$code}%");
+                    ->orWhere('sku', 'LIKE', "%{$code}%")
+                    ->orWhere('ean13', 'LIKE', "%{$code}%")
+                    ->orWhere('upc', 'LIKE', "%{$code}%");
             })
             ->whereHas('product', function($q) {
                 $q->where('status', 1);
@@ -57,6 +59,8 @@ class ProductController extends Controller
                     'name' => $variant->product->name,
                     'variant_name' => $variant->product->name,
                     'sku' => $variant->sku,
+                    'ean13' => $variant->ean13,
+                    'upc' => $variant->upc,
                     'price' => $variant->price,
                     'sale_price' => $variant->sale_price,
                     'stock_quantity' => $variant->stock_quantity,
@@ -68,11 +72,12 @@ class ProductController extends Controller
             ]);
         }
 
-        // Nếu không tìm thấy variant, tìm products
         $product = Product::with(['variants.attributeValues.attributeValue.attribute', 'images', 'categories'])
             ->where(function($q) use ($code) {
                 $q->where('sku', $code)
-                    ->orWhere('sku', 'LIKE', "%{$code}%");
+                    ->orWhere('sku', 'LIKE', "%{$code}%")
+                    ->orWhere('ean13', 'LIKE', "%{$code}%")
+                    ->orWhere('upc', 'LIKE', "%{$code}%");
             })
             ->where('status', 1)
             ->first();
@@ -97,6 +102,8 @@ class ProductController extends Controller
                     return [
                         'id' => $variant->id,
                         'sku' => $variant->sku,
+                        'ean13' => $variant->ean13,
+                        'upc' => $variant->upc,
                         'price' => $variant->price,
                         'sale_price' => $variant->sale_price,
                         'stock_quantity' => $variant->stock_quantity,
@@ -112,6 +119,8 @@ class ProductController extends Controller
                         'id' => $product->id,
                         'name' => $product->name,
                         'sku' => $product->sku,
+                        'ean13' => $product->ean13,
+                        'upc' => $product->upc,
                         'thumbnail' => $product->images->first()?->image_url
                             ? asset('storage/' . $product->images->first()->image_url)
                             : '/images/no-image.png',
@@ -127,6 +136,8 @@ class ProductController extends Controller
                     'id' => $product->id,
                     'name' => $product->name,
                     'sku' => $product->sku,
+                    'ean13' => $product->ean13,
+                    'upc' => $product->upc,
                     'price' => $product->price,
                     'sale_price' => $product->sale_price,
                     'stock_quantity' => $product->stock_quantity,

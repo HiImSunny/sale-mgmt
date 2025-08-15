@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title') - PacificStore</title>
+    <title>@yield('title') - {{ \App\Services\SettingsService::get('general.site_name') }}</title>
 
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -366,7 +366,7 @@
     <header class="top-header">
         <div class="brand-section">
             <a href="{{ route('dashboard') }}" class="brand-logo">
-                PacificStore
+                {{ \App\Services\SettingsService::get('general.site_name') }}
             </a>
         </div>
 
@@ -399,13 +399,8 @@
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <a class="dropdown-item" href="#profile.edit">
+                        <a class="dropdown-item" href="{{ route('profile.edit') }}">
                             <i class="fas fa-user me-2"></i>Hồ sơ cá nhân
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#settings.index">
-                            <i class="fas fa-cog me-2"></i>Cài đặt
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
@@ -454,10 +449,12 @@
                         <i class="fas fa-box"></i>
                         <span>Kho hàng</span>
                     </a>
-                    <a href="#categories.index" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
-                        <i class="fas fa-tags"></i>
-                        <span>Danh mục</span>
-                    </a>
+                    @if (Auth::user()->role === 'admin')
+                        <a href="#categories.index" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                            <i class="fas fa-tags"></i>
+                            <span>Danh mục</span>
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -484,11 +481,7 @@
                             <i class="fas fa-user-cog"></i>
                             <span>Nhân viên</span>
                         </a>
-                        <a href="#backup.index" class="nav-link {{ request()->routeIs('backup*') ? 'active' : '' }}">
-                            <i class="fas fa-database"></i>
-                            <span>Sao lưu</span>
-                        </a>
-                        <a href="#settings.index" class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}">
+                        <a href="{{ route('settings.index') }}" class="nav-link {{ request()->routeIs(['settings*', 'backup*']) ? 'active' : '' }}">
                             <i class="fas fa-cog"></i>
                             <span>Cài đặt</span>
                         </a>

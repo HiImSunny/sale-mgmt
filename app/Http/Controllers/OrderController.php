@@ -257,10 +257,10 @@ class OrderController extends Controller
 
             // Company information
             $company = [
-                'name' => config('app.company_name', 'PacificStore'),
-                'address' => config('app.company_address', '168 Nguyễn Văn Cừ Nối Dài, An Bình, Ninh Kiều, Cần Thơ'),
-                'phone' => config('app.company_phone', '0292 3798 668'),
-                'email' => config('app.company_email', 'info@pacific.store'),
+                'name' => config('app_settings.general.site_name', 'PacificStore'),
+                'address' => config('app_settings.general.address', '168 Nguyễn Văn Cừ Nối Dài, An Bình, Ninh Kiều, Cần Thơ'),
+                'phone' => config('app_settings.general.contact_phone', '0292 3798 668'),
+                'email' => config('app_settings.general.contact_email', 'info@pacific.store'),
             ];
 
             // Payment method mapping
@@ -410,10 +410,10 @@ class OrderController extends Controller
 
             // Company information
             $company = [
-                'name' => config('app.company_name', 'PacificStore'),
-                'address' => config('app.company_address', '168 Nguyễn Văn Cừ Nối Dài, An Bình, Ninh Kiều, Cần Thơ'),
-                'phone' => config('app.company_phone', '0292 3798 668'),
-                'email' => config('app.company_email', 'info@pacific.store'),
+                'name' => config('app_settings.general.site_name', 'PacificStore'),
+                'address' => config('app_settings.general.address', '168 Nguyễn Văn Cừ Nối Dài, An Bình, Ninh Kiều, Cần Thơ'),
+                'phone' => config('app_settings.general.contact_phone', '0292 3798 668'),
+                'email' => config('app_settings.general.contact_email', 'info@pacific.store'),
             ];
 
             // Payment method mapping

@@ -14,7 +14,6 @@ class CustomerController extends Controller
     {
         $query = Customer::query();
 
-        // ✅ Search functionality
         if ($search = $request->get('search')) {
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -23,17 +22,14 @@ class CustomerController extends Controller
             });
         }
 
-        // ✅ Filter by tier
         if ($tier = $request->get('tier')) {
             $query->where('customer_tier', $tier);
         }
 
-        // ✅ Filter by VIP status
         if ($request->has('vip')) {
             $query->where('is_vip', $request->get('vip') === '1');
         }
 
-        // ✅ Sorting
         $sortBy = $request->get('sort', 'created_at');
         $sortOrder = $request->get('order', 'desc');
 
@@ -44,7 +40,6 @@ class CustomerController extends Controller
 
         $customers = $query->paginate(20)->withQueryString();
 
-        // ✅ Statistics
         $stats = [
             'total' => Customer::count(),
             'bronze' => Customer::where('customer_tier', 'bronze')->count(),
@@ -155,24 +150,6 @@ class CustomerController extends Controller
             ->paginate(15);
 
         return view('customer.orders', compact('customer', 'orders'));
-    }
-
-    public function updateTier(Customer $customer, Request $request)
-    {
-        $validated = $request->validate([
-            'tier' => 'required|in:bronze,silver,gold,platinum',
-            'is_vip' => 'boolean'
-        ]);
-
-        $customer->update([
-            'customer_tier' => $validated['tier'],
-            'is_vip' => $validated['is_vip'] ?? false
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Cấp độ khách hàng đã được cập nhật!'
-        ]);
     }
 
     private function getMonthlySpending(Customer $customer)

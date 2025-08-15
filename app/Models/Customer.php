@@ -24,7 +24,6 @@ class Customer extends Model
         return $this->hasMany(Order::class);
     }
 
-    // Helper methods cho loyalty program
     public function updateTotalSpent(): void
     {
         $this->total_spent = $this->orders()->where('status', 'completed')->sum('grand_total');

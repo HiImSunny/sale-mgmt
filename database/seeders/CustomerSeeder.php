@@ -20,9 +20,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'male',
                 'address' => '123 Nguyễn Huệ, Quận 1, TP.HCM',
                 'notes' => 'Khách hàng VIP, thường mua số lượng lớn',
-                'total_orders' => 45,
-                'total_spent' => 75000000, // 75M VND
-                'customer_tier' => 'platinum',
                 'is_vip' => true,
                 'created_at' => Carbon::now()->subMonths(18),
                 'updated_at' => Carbon::now()->subDays(5),
@@ -35,9 +32,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'female',
                 'address' => '456 Lê Lợi, Quận 3, TP.HCM',
                 'notes' => 'Chủ cửa hàng thời trang, mua hàng định kỳ',
-                'total_orders' => 52,
-                'total_spent' => 82000000, // 82M VND
-                'customer_tier' => 'platinum',
                 'is_vip' => true,
                 'created_at' => Carbon::now()->subMonths(24),
                 'updated_at' => Carbon::now()->subDays(2),
@@ -52,9 +46,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'male',
                 'address' => '789 Hai Bà Trưng, Quận Tân Bình, TP.HCM',
                 'notes' => 'Thích sản phẩm cao cấp, quan tâm đến chất lượng',
-                'total_orders' => 28,
-                'total_spent' => 35000000, // 35M VND
-                'customer_tier' => 'gold',
                 'is_vip' => false,
                 'created_at' => Carbon::now()->subMonths(15),
                 'updated_at' => Carbon::now()->subDays(7),
@@ -67,9 +58,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'female',
                 'address' => '321 Nguyễn Trãi, Quận 5, TP.HCM',
                 'notes' => 'Khách hàng lâu năm, rất tin tưởng sản phẩm',
-                'total_orders' => 33,
-                'total_spent' => 42000000, // 42M VND
-                'customer_tier' => 'gold',
                 'is_vip' => false,
                 'created_at' => Carbon::now()->subMonths(20),
                 'updated_at' => Carbon::now()->subDays(3),
@@ -84,9 +72,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'female',
                 'address' => '147 Điện Biên Phủ, Quận Bình Thạnh, TP.HCM',
                 'notes' => 'Sinh viên, thích sản phẩm trendy',
-                'total_orders' => 18,
-                'total_spent' => 12500000, // 12.5M VND
-                'customer_tier' => 'silver',
                 'is_vip' => false,
                 'created_at' => Carbon::now()->subMonths(8),
                 'updated_at' => Carbon::now()->subDays(4),
@@ -99,9 +84,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'male',
                 'address' => '258 Lý Thái Tổ, Quận 3, TP.HCM',
                 'notes' => 'Kỹ sư IT, mua hàng online nhiều',
-                'total_orders' => 15,
-                'total_spent' => 9800000, // 9.8M VND
-                'customer_tier' => 'silver',
                 'is_vip' => false,
                 'created_at' => Carbon::now()->subMonths(10),
                 'updated_at' => Carbon::now()->subDays(6),
@@ -116,9 +98,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'male',
                 'address' => '741 Trân Hưng Đạo, Quận 1, TP.HCM',
                 'notes' => 'Khách hàng mới, có tiềm năng phát triển',
-                'total_orders' => 5,
-                'total_spent' => 2800000, // 2.8M VND
-                'customer_tier' => 'bronze',
                 'is_vip' => false,
                 'created_at' => Carbon::now()->subMonths(3),
                 'updated_at' => Carbon::now()->subDays(12),
@@ -133,9 +112,6 @@ class CustomerSeeder extends Seeder
                 'gender' => 'male',
                 'address' => 'Quận 7, TP.HCM',
                 'notes' => 'Khách vãng lai, không để lại thông tin chi tiết',
-                'total_orders' => 2,
-                'total_spent' => 800000, // 800K VND
-                'customer_tier' => 'bronze',
                 'is_vip' => false,
                 'created_at' => Carbon::now()->subMonths(1),
                 'updated_at' => Carbon::now()->subDays(20),

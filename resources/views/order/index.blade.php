@@ -139,9 +139,14 @@
                                 <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
                             </div>
                             <div class="col-md-1">
-                                <button type="submit" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-search"></i>
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    <a href="{{ route('orders.index') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-undo"></i>
+                                    </a>
+                                </div>
                             </div>
                         </form>
 
@@ -215,7 +220,6 @@
                                                 <small class="text-muted">
                                                     @switch($order->payment_method)
                                                         @case('vnpay') VNPay @break
-                                                        @case('cod') COD @break
                                                         @case('cash_at_counter') Tiền mặt @break
                                                     @endswitch
                                                 </small>

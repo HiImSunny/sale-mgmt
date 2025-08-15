@@ -682,7 +682,7 @@ function completeOrder() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showAlert('Thanh toán hoàn tất!', 'success');
+                showAlert('Hoàn tất đơn hàng!', 'success');
 
                 currentOrder = null;
                 cart = [];
@@ -707,9 +707,6 @@ function completeOrder() {
         });
 }
 
-// ========================================
-// VNPAY PAYMENT PROCESSING
-// ========================================
 function processVNPayPayment(orderData) {
     showVNPayQRModal(orderData.vnpay_qr);
 }
@@ -883,7 +880,6 @@ function handlePaymentSuccess(paymentData) {
         modal.hide();
     }
 
-    // Thông báo thành công với animation
     Swal.fire({
         icon: 'success',
         title: '🎉 Thanh toán thành công!',
@@ -965,25 +961,6 @@ function handlePaymentFailure() {
             switchToCash();
         }
     });
-}
-
-function completeOrderSuccess() {
-    // Reset order và cart
-    currentOrder = null;
-    cart = [];
-    updateCartDisplay();
-
-    // Reset UI buttons
-    document.getElementById('confirm-payment').style.display = 'block';
-    document.getElementById('complete-order').style.display = 'none';
-    document.getElementById('confirm-payment').disabled = false;
-    document.getElementById('confirm-payment').innerHTML = '<i class="bi bi-credit-card me-2"></i>Xác nhận thanh toán';
-
-    // Reset payment method về cash
-    const cashRadio = document.getElementById('cash');
-    if (cashRadio) {
-        cashRadio.checked = true;
-    }
 }
 
 function switchToCash() {

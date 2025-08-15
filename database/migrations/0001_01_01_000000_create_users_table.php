@@ -16,20 +16,11 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
-            $table->enum('role', ['admin', 'seller', 'customerSeeder'])->default('customerSeeder');
-            $table->string('provider')->nullable();
-            $table->string('provider_id')->nullable();
+            $table->enum('role', ['admin', 'seller'])->default('seller');
             $table->string('avatar')->nullable();
             $table->rememberToken();
             $table->timestamps();
 
-            $table->index(['provider', 'provider_id']);
-        });
-
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {

@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class POSController extends Controller
 {
@@ -29,7 +30,6 @@ class POSController extends Controller
 
     public function createOrder(Request $request)
     {
-        // ✅ FIXED: Validate for both product and variant
         $request->validate([
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|exists:products,id',
@@ -47,7 +47,6 @@ class POSController extends Controller
             $orderItems = [];
 
             foreach ($request->items as $item) {
-                // ✅ FIXED: Handle both simple products and variants
                 if (isset($item['variant_id']) && $item['variant_id']) {
                     // Handle variant
                     $variant = ProductVariant::with(['product', 'attributeValues.attributeValue.attribute'])->find($item['variant_id']);
@@ -238,83 +237,73 @@ class POSController extends Controller
         ]);
 
         if ($order->payment_status === 'paid') {
+            if ($order->payment_method === 'vnpay') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đơn hàng đã được thanh toán'
+                ]);
+            }
             return response()->json([
                 'success' => false,
                 'message' => 'Đơn hàng đã được thanh toán'
             ], 400);
         }
 
-        // Chỉ xử lý cash payment ở đây, VNPay sẽ được xử lý qua callback
-        if ($request->payment_method === 'cash_at_counter') {
-            DB::beginTransaction();
+        DB::beginTransaction();
 
-            try {
-                $order->update([
-                    'payment_status' => 'paid',
-                    'paid_at' => now()
-                ]);
+        try {
+            $order->update([
+                'payment_status' => 'paid',
+                'paid_at' => now()
+            ]);
 
-                $this->confirmOrderAndReduceStock($order);
-                DB::commit();
+            $this->confirmOrderAndReduceStock($order);
+            DB::commit();
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Thanh toán thành công',
-                    'data' => [
-                        'order_id' => $order->id,
-                        'invoice_url' => route('orders.invoice', $order)
-                    ]
-                ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Thanh toán thành công',
+                'data' => [
+                    'order_id' => $order->id,
+                    'invoice_url' => route('orders.invoice', $order)
+                ]
+            ]);
 
-            } catch (Exception $e) {
-                DB::rollback();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Có lỗi xảy ra khi xác nhận thanh toán: ' . $e->getMessage()
-                ], 500);
-            }
+        } catch (Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi xác nhận thanh toán: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Phương thức thanh toán không hợp lệ'
-        ], 400);
     }
 
-    // ✅ FIXED: Handle both simple products and variants
+
     private function confirmOrderAndReduceStock(Order $order)
     {
-        // Chuyển trạng thái đơn hàng
         $order->update(['status' => 'completed']);
 
-        // Trừ kho và ghi inventory transaction
         foreach ($order->items as $item) {
             if ($item->product_variant_id) {
-                // Handle variant inventory
                 $variant = $item->productVariant;
 
-                // ✅ FIXED: Use stock_quantity instead of stock
                 $variant->decrement('stock_quantity', $item->quantity);
 
-                // Ghi inventory transaction
                 InventoryTransaction::create([
                     'product_variant_id' => $variant->id,
                     'type' => 'out',
-                    'qty' => $item->quantity, // ✅ FIXED: Positive quantity for 'out' transaction
+                    'qty' => $item->quantity,
                     'reference_type' => 'order',
                     'reference_id' => $order->id,
                     'user_id' => Auth::id(),
                     'note' => "Bán hàng POS - Đơn {$order->code}"
                 ]);
             } elseif ($item->product_id) {
-                // ✅ FIXED: Handle simple product inventory
                 $product = Product::find($item->product_id);
 
                 if ($product && !$product->has_variants) {
                     $product->decrement('stock_quantity', $item->quantity);
 
-                    // Note: You might want to create inventory transaction for products too
-                    // Or create a separate table for product inventory transactions
                 }
             }
         }
@@ -325,8 +314,8 @@ class POSController extends Controller
         $query = $request->get('q');
 
         $orders = Order::with(['items'])
-            ->where('type', 'sale') // ✅ FIXED: Use direct where instead of scope
-            ->where('status', 'completed') // ✅ FIXED: Use 'completed' instead of 'confirmed'
+            ->where('type', 'sale')
+            ->where('status', 'completed')
             ->where('payment_status', 'paid')
             ->where(function ($q) use ($query) {
                 $q->where('code', 'like', "%{$query}%")
@@ -356,8 +345,8 @@ class POSController extends Controller
     public function getOrderDetails($orderId)
     {
         $order = Order::with(['items.productVariant'])
-            ->where('type', 'sale') // ✅ FIXED: Use direct where instead of scope
-            ->where('status', 'completed') // ✅ FIXED: Use 'completed' instead of 'confirmed'
+            ->where('type', 'sale')
+            ->where('status', 'completed')
             ->where('payment_status', 'paid')
             ->find($orderId);
 
@@ -521,7 +510,6 @@ class POSController extends Controller
         }
     }
 
-    // ✅ NEW: Helper method to generate order codes
     private function generateOrderCode($prefix = 'POS')
     {
         do {
@@ -529,5 +517,53 @@ class POSController extends Controller
         } while (Order::where('code', $code)->exists());
 
         return $code;
+    }
+
+    private function updateCustomerStats($customer)
+    {
+        try {
+            $completedSaleOrders = $customer->orders()
+                ->where('type', 'sale')
+                ->where('status', 'completed');
+
+            $completedRefundOrders = $customer->orders()
+                ->where('type', 'refund')
+                ->where('status', 'completed');
+
+            $totalSalesAmount = $completedSaleOrders->sum('grand_total');
+            $totalRefundAmount = $completedRefundOrders->sum('grand_total');
+            $netSpending = $totalSalesAmount - $totalRefundAmount;
+
+            $customer->update([
+                'total_orders' => $completedSaleOrders->count(),
+                'total_spent' => max(0, $netSpending),
+            ]);
+
+            $this->updateCustomerTier($customer);
+
+            Log::info("Customer stats updated after payment for customer {$customer->id}: Orders: {$customer->total_orders}, Spent: {$customer->total_spent}");
+
+        } catch (Exception $e) {
+            Log::error("Error updating customer stats for customer {$customer->id}: " . $e->getMessage());
+        }
+    }
+
+    private function updateCustomerTier($customer)
+    {
+        $oldTier = $customer->customer_tier;
+        $newTier = 'bronze';
+
+        if ($customer->total_spent >= 50000000) {
+            $newTier = 'platinum';
+        } elseif ($customer->total_spent >= 20000000) {
+            $newTier = 'gold';
+        } elseif ($customer->total_spent >= 5000000) {
+            $newTier = 'silver';
+        }
+
+        if ($oldTier !== $newTier) {
+            $customer->update(['customer_tier' => $newTier]);
+            Log::info("Customer tier updated after VNPay payment for customer {$customer->id}: {$oldTier} → {$newTier}");
+        }
     }
 }

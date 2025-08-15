@@ -30,7 +30,6 @@ class DashboardController extends Controller
 
     private function getAnalyticsData($today, $yesterday, $thisMonth, $lastMonthStart, $lastMonthEnd)
     {
-        // ✅ Fixed: Trừ refund khỏi doanh thu
         $todaySales = Order::whereDate('created_at', $today)
             ->where('status', 'completed')
             ->selectRaw("
@@ -106,34 +105,27 @@ class DashboardController extends Controller
             ->count();
         $totalEmployees = User::whereIn('role', ['admin', 'seller'])->count();
 
-        // ✅ FIXED: Stock data - sử dụng stock_quantity thay vì stock
         $lowStockCount = $this->getLowStockCount();
         $lowStockProducts = $this->getLowStockProducts();
 
-        // ✅ Fixed: Failed payments - chỉ đếm orders bán hàng
         $failedPayments = Order::whereDate('created_at', $today)
             ->where('payment_status', 'failed')
             ->where('type', 'sale')
             ->count();
 
-        // Recent orders - keep as is since you already filter out refunds
         $recentOrders = Order::whereNot('type', 'refund')->with(['customer', 'user'])
             ->latest()
             ->limit(10)
             ->get();
 
-        // Top products
         $topProducts = $this->getTopProducts();
 
-        // Customer tiers
         $customerTiers = $this->getCustomerTiers();
 
-        // Chart data
         $salesChartData = $this->getSalesChartData('7days');
         $categoryData = $this->getCategoryRevenueData();
         $paymentMethodData = $this->getPaymentMethodData();
 
-        // Recent activities
         $recentActivities = $this->getRecentActivities();
 
         return [
@@ -164,27 +156,22 @@ class DashboardController extends Controller
         ];
     }
 
-    // ✅ NEW: Method riêng để tính low stock với logic mới
     private function getLowStockCount()
     {
-        // Đếm products đơn giản có stock thấp
         $simpleProductsLowStock = Product::where('has_variants', false)
             ->where('stock_quantity', '<=', 10)
             ->count();
 
-        // Đếm variants có stock thấp
         $variantsLowStock = ProductVariant::where('stock_quantity', '<=', 10)
             ->count();
 
         return $simpleProductsLowStock + $variantsLowStock;
     }
 
-    // ✅ NEW: Method riêng để lấy low stock products với logic mới
     private function getLowStockProducts()
     {
         $lowStockItems = collect();
 
-        // Lấy simple products có stock thấp
         $simpleProducts = Product::where('has_variants', false)
             ->where('stock_quantity', '<=', 10)
             ->orderBy('stock_quantity', 'asc')
@@ -196,11 +183,11 @@ class DashboardController extends Controller
                     'name' => $product->name,
                     'sku' => $product->sku,
                     'stock_quantity' => $product->stock_quantity,
-                    'type' => 'simple_product'
+                    'type' => 'simple_product',
+                    'product' => $product,
                 ];
             });
 
-        // Lấy variants có stock thấp
         $variants = ProductVariant::with('product')
             ->where('stock_quantity', '<=', 10)
             ->orderBy('stock_quantity', 'asc')
@@ -223,7 +210,6 @@ class DashboardController extends Controller
             ->values();
     }
 
-    // ✅ FIXED: Top products với stock_quantity
     private function getTopProducts()
     {
         return DB::table('order_items as oi')

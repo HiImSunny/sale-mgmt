@@ -171,9 +171,14 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-search me-1"></i>Tìm kiếm
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search"></i> Tìm kiếm
+                                    </button>
+                                    <a href="{{ route('customers.index') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-undo"></i> Reset
+                                    </a>
+                                </div>
                             </div>
                         </form>
 

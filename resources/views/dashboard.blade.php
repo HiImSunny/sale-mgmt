@@ -327,7 +327,7 @@
                                 @forelse($analytics['recentOrders'] as $order)
                                     <tr>
                                         <td>
-                                            <a {{--href="{{ route('orders.show', $order->id) }}"--}} class="text-primary fw-bold">
+                                            <a href="{{ route('orders.show', $order->id) }}" class="text-primary fw-bold">
                                                 {{ $order->code }}
                                             </a>
                                         </td>

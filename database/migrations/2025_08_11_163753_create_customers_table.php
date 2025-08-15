@@ -22,8 +22,10 @@ return new class extends Migration
 
             $table->integer('total_orders')->default(0);
             $table->decimal('total_spent', 15, 2)->default(0);
-            $table->enum('customer_tier', ['bronze', 'silver', 'gold', 'platinum'])->default('bronze');
+            $table->enum('customer_tier', ['regular', 'bronze', 'silver', 'gold', 'platinum'])->default('bronze');
             $table->boolean('is_vip')->default(false);
+
+            $table->integer('reward_points')->default(0);
 
             $table->timestamps();
 

@@ -47,7 +47,6 @@ class ProductController extends Controller
 
         $query = Product::with(['categories', 'images', 'variants']);
 
-        // ✅ FIXED: Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->where(function($q) use ($search) {

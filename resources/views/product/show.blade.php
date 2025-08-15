@@ -123,9 +123,6 @@
                 <a href="{{ route('products.edit', $product) }}" class="btn btn-primary">
                     <i class="fas fa-edit me-2"></i>Chỉnh sửa
                 </a>
-                <button type="button" class="btn btn-success" onclick="showBarcode({{ $product->sku }}, '{{ $product->name }}')">
-                    <i class="fas fa-print me-2"></i>In mã vạch
-                </button>
                 <a href="{{ route('products.index') }}" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>Danh sách
                 </a>
@@ -293,17 +290,9 @@
                                     </div>
                                     <svg id="barcode" class="mb-3"></svg>
                                     <div class="barcode-display">{{ $product->sku }}</div>
-                                    <div class="price-display justify-content-center">
-                                        @if($product->sale_price && $product->sale_price < $product->price)
-                                            <span class="sale-price">{{ number_format($product->sale_price) }}đ</span>
-                                            <span class="original-price">{{ number_format($product->price) }}đ</span>
-                                        @else
-                                            <span class="fs-5 fw-bold">{{ number_format($product->price) }}đ</span>
-                                        @endif
-                                    </div>
                                     <div class="mt-3">
-                                        <button type="button" class="btn btn-success me-2" onclick="showBarcode({{ $product->sku }}, '{{ $product->name }}')">
-                                            <i class="fas fa-print"></i> In mã vạch
+                                        <button type="button" class="btn btn-success me-2" onclick="showBarcode('{{ $product->sku }}', '{{ $product->name }}')">
+                                            <i class="fas fa-print me-2"></i>In mã vạch
                                         </button>
                                     </div>
                                 </div>

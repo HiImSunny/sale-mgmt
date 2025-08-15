@@ -40,10 +40,10 @@ class VNPayController extends Controller
             }
 
             if ($vnp_ResponseCode == '00') {
-//                // Payment success
-//                DB::transaction(function () use ($order) {
-//                    $this->processSuccessfulPayment($order);
-//                });
+                // Payment success
+                DB::transaction(function () use ($order) {
+                    $this->processSuccessfulPayment($order);
+                });
 
                 return $this->returnResponse($source, true, 'Thanh toán thành công', $order);
             } else {
@@ -99,11 +99,11 @@ class VNPayController extends Controller
             }
 
             if ($vnp_ResponseCode == '00') {
-//                if ($order->payment_status !== 'paid') {
-//                    DB::transaction(function () use ($order) {
-//                        $this->processSuccessfulPayment($order);
-//                    });
-//                }
+                if ($order->payment_status !== 'paid') {
+                    DB::transaction(function () use ($order) {
+                        $this->processSuccessfulPayment($order);
+                    });
+                }
                 return response()->json(['RspCode' => '00', 'Message' => 'Success']);
             } else {
                 $order->update(['payment_status' => 'failed']);
@@ -117,37 +117,30 @@ class VNPayController extends Controller
 
     private function processSuccessfulPayment(Order $order)
     {
-        // Update order status - use 'completed' instead of 'confirmed'
         $order->update([
-            'status' => 'completed', // ✅ FIXED: Use standard status
+            'status' => 'completed',
             'payment_status' => 'paid',
-            'paid_at' => now() // ✅ ADDED: Set paid timestamp
+            'paid_at' => now()
         ]);
 
-        // Create inventory transactions to reduce stock
-        foreach ($order->items as $item) { // ✅ FIXED: Use 'items' relationship name
+        foreach ($order->items as $item) {
             if ($item->product_variant_id) {
-                // ✅ Handle variant inventory
                 $variant = $item->productVariant;
 
                 if ($variant) {
-                    // Check stock availability
                     if ($variant->stock_quantity < $item->quantity) {
                         Log::warning("Insufficient stock for variant {$variant->id}. Available: {$variant->stock_quantity}, Required: {$item->quantity}");
-                        // Continue processing but log warning
                     }
 
-                    // Reduce inventory - use stock_quantity instead of stock
                     $variant->decrement('stock_quantity', $item->quantity);
 
-                    // Create inventory transaction
                     InventoryTransaction::create([
                         'product_variant_id' => $variant->id,
                         'type' => 'out',
                         'qty' => $item->quantity,
                         'reference_type' => 'order',
                         'reference_id' => $order->id,
-                        'user_id' => $order->user_id, // ✅ ADDED: Track user
+                        'user_id' => $order->user_id,
                         'note' => 'Bán hàng VNPay - Đơn #' . $order->code,
                     ]);
 
