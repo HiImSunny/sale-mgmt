@@ -1,3 +1,4 @@
+
 @extends('layouts.app')
 
 @section('title', 'Quản lý sản phẩm')

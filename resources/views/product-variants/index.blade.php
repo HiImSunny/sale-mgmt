@@ -1,3 +1,4 @@
+
 @extends('layouts.app')
 
 @section('title', 'Quản lý biến thể - ' . $product->name)
