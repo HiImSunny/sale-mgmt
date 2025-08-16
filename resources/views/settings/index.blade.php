@@ -215,11 +215,11 @@
 
                         {{-- QUICK BACKUP (plain background) --}}
                         <div class="backup-quick-actions">
-                            <h6><i class="fas fa-shield-alt me-2"></i>Bảo vệ dữ liệu</h6>
-                            <p class="mb-3">Backup settings trước khi thay đổi để đảm bảo an toàn</p>
+                            <h6><i class="fas fa-database me-2"></i>Sao lưu và khôi phục</h6>
+                            <p class="mb-3">Sao lưu trước khi thay đổi để đảm bảo an toàn</p>
                             <div class="d-grid gap-2">
                                 <a href="{{ route('backup.index') }}" class="btn btn-outline-primary">
-                                    <i class="fas fa-archive me-2"></i>Quản lý Backup
+                                    <i class="fas fa-archive me-2"></i>Quản lý Sao lưu
                                 </a>
                             </div>
                         </div>

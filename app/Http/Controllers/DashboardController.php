@@ -74,14 +74,12 @@ class DashboardController extends Controller
             ")
             ->value('revenue') ?? 0;
 
-        // Calculate growth rates
         $salesGrowth = $yesterdaySales > 0 ?
             round((($todaySales - $yesterdaySales) / $yesterdaySales) * 100, 2) : 0;
 
         $monthlyGrowth = $lastMonthRevenue > 0 ?
             round((($monthlyRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 2) : 0;
 
-        // ✅ Fixed: Orders data - chỉ đếm orders bán hàng
         $todayOrders = Order::whereDate('created_at', $today)
             ->where('type', 'sale')
             ->count();
@@ -170,8 +168,6 @@ class DashboardController extends Controller
 
     private function getLowStockProducts()
     {
-        $lowStockItems = collect();
-
         $simpleProducts = Product::where('has_variants', false)
             ->where('stock_quantity', '<=', 10)
             ->orderBy('stock_quantity', 'asc')
@@ -179,36 +175,37 @@ class DashboardController extends Controller
             ->get()
             ->map(function($product) {
                 return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'sku' => $product->sku,
+                    'product_name'   => $product->name,
+                    'sku'            => $product->sku,
                     'stock_quantity' => $product->stock_quantity,
-                    'type' => 'simple_product',
-                    'product' => $product,
+                    'variant_name'   => null,
                 ];
-            });
+            })
+            ->values();
 
-        $variants = ProductVariant::with('product')
+        $variants = ProductVariant::with(['product', 'attributeValues.attributeValue'])
             ->where('stock_quantity', '<=', 10)
             ->orderBy('stock_quantity', 'asc')
             ->limit(5)
             ->get()
             ->map(function($variant) {
-                return [
-                    'id' => $variant->id,
-                    'name' => $variant->product->name,
-                    'sku' => $variant->sku,
-                    'stock_quantity' => $variant->stock_quantity,
-                    'type' => 'variant'
-                ];
-            });
+                $variantName = $variant->attributeValues
+                    ->map(fn($pv) => $pv->attributeValue->value)
+                    ->join(' - ');
 
-        return $lowStockItems->merge($simpleProducts)
-            ->merge($variants)
-            ->sortBy('stock_quantity')
-            ->take(10)
+                return [
+                    'product_name'   => $variant->product->name,
+                    'sku'            => $variant->sku,
+                    'stock_quantity' => $variant->stock_quantity,
+                    'variant_name'   => $variantName ?: null,
+                ];
+            })
             ->values();
+
+        return $simpleProducts->concat($variants)->sortBy('stock_quantity')->take(10)->values();
     }
+
+
 
     private function getTopProducts()
     {
@@ -217,12 +214,12 @@ class DashboardController extends Controller
             ->join('product_variants as pv', 'oi.product_variant_id', '=', 'pv.id')
             ->join('products as p', 'pv.product_id', '=', 'p.id')
             ->where('o.status', 'completed')
-            ->where('o.type', 'sale') // ✅ Fixed: Chỉ lấy orders bán hàng
+            ->where('o.type', 'sale')
             ->where('o.created_at', '>=', Carbon::now()->subDays(30))
             ->select(
                 'p.id',
                 'p.name',
-                'pv.stock_quantity', // ✅ FIXED: stock -> stock_quantity
+                'pv.stock_quantity',
                 'pv.sku',
                 DB::raw('SUM(oi.quantity) as total_sold'),
                 DB::raw('SUM(oi.line_total) as revenue')
@@ -279,7 +276,6 @@ class DashboardController extends Controller
         }
 
         if ($period === '12months') {
-            // ✅ Fixed: Trừ refund trong chart data
             $salesData = Order::where('created_at', '>=', $startDate)
                 ->where('status', 'completed')
                 ->select(
@@ -299,7 +295,6 @@ class DashboardController extends Controller
                 ->orderBy('month', 'asc')
                 ->get();
         } else {
-            // ✅ Fixed: Trừ refund trong chart data
             $salesData = Order::where('created_at', '>=', $startDate)
                 ->where('status', 'completed')
                 ->select(
@@ -351,7 +346,6 @@ class DashboardController extends Controller
         ];
     }
 
-    // ✅ FIXED: Category revenue với relationship mới
     private function getCategoryRevenueData()
     {
         $categoryCount = Category::count();
@@ -392,10 +386,9 @@ class DashboardController extends Controller
 
     private function getPaymentMethodData()
     {
-        // ✅ Fixed: Chỉ lấy orders bán hàng
         $paymentMethods = Order::where('status', 'completed')
             ->where('payment_status', 'paid')
-            ->where('type', 'sale') // ✅ Chỉ lấy orders bán hàng
+            ->where('type', 'sale')
             ->where('created_at', '>=', Carbon::now()->subDays(30))
             ->select('payment_method', DB::raw('COUNT(*) as count'))
             ->groupBy('payment_method')
@@ -426,9 +419,8 @@ class DashboardController extends Controller
     {
         $activities = collect();
 
-        // ✅ Fixed: Chỉ lấy orders bán hàng trong recent activities
         $recentOrders = Order::with('user')
-            ->where('type', 'sale') // ✅ Chỉ lấy orders bán hàng
+            ->where('type', 'sale')
             ->latest()
             ->limit(5)
             ->get();
@@ -443,7 +435,6 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Recent customers
         $recentCustomers = Customer::latest()
             ->limit(3)
             ->get();
@@ -458,7 +449,6 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Recent products
         $recentProducts = Product::latest()
             ->limit(3)
             ->get();

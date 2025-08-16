@@ -450,9 +450,13 @@
                         <span>Kho hàng</span>
                     </a>
                     @if (Auth::user()->role === 'admin')
-                        <a href="#categories.index" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                        <a href="{{ route('categories.index') }}" class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
                             <i class="fas fa-tags"></i>
                             <span>Danh mục</span>
+                        </a>
+                        <a href="{{ route('attributes.index') }}" class="nav-link {{ request()->routeIs('attributes.*') ? 'active' : '' }}">
+                            <i class="fas fa-list-alt"></i>
+                            <span>Thuộc tính</span>
                         </a>
                     @endif
                 </div>
@@ -461,23 +465,13 @@
             {{-- Admin Only Sections --}}
             @if(auth()->user()->role === 'admin')
                 <div class="nav-group">
-                    <div class="nav-group-title">Phân tích</div>
-                    <div class="nav-items">
-                        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                            <i class="fas fa-chart-pie"></i>
-                            <span>Thống kê</span>
-                        </a>
-                        <a href="#reports.sales" class="nav-link {{ request()->routeIs('reports.sales') ? 'active' : '' }}">
-                            <i class="fas fa-chart-line"></i>
-                            <span>Báo cáo</span>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="nav-group">
                     <div class="nav-group-title">Hệ thống</div>
                     <div class="nav-items">
-                        <a href="#users.index" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                            <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                                <i class="fas fa-chart-pie"></i>
+                                <span>Thống kê</span>
+                            </a>
+                        <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
                             <i class="fas fa-user-cog"></i>
                             <span>Nhân viên</span>
                         </a>

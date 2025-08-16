@@ -7,8 +7,12 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductVariantController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\POSController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\AttributeController;
+use App\Http\Controllers\AttributeValueController;
 use App\Http\Controllers\VNPayController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,9 +21,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'dashboard']);
     Route::get('/dashboard/sales-chart', [DashboardController::class, 'getSalesChart']);
     Route::get('/dashboard/refresh', [DashboardController::class, 'refreshDashboard']);
-
-    Route::get('/export/orders', [ExportController::class, 'orders'])->name('admin.export.orders');
-    Route::get('/export/products', [ExportController::class, 'products'])->name('admin.export.products');
 
     Route::resource('products', ProductController::class);
 
@@ -39,6 +40,19 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::put('{variant}', [ProductVariantController::class, 'update'])->name('product-variants.update');
         Route::delete('{variant}', [ProductVariantController::class, 'destroy'])->name('product-variants.destroy');
     });
+
+    Route::resource('categories', CategoryController::class);
+
+    Route::post('categories/bulk-delete', [CategoryController::class, 'bulkDelete'])->name('categories.bulk-delete');
+    Route::post('categories/export', [CategoryController::class, 'export'])->name('categories.export');
+
+    Route::resource('attributes', AttributeController::class);
+    Route::resource('attributes.values', AttributeValueController::class);
+
+    Route::resource('users', UserController::class);
+
+    Route::post('users/bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulk-delete');
+    Route::post('users/export', [UserController::class, 'export'])->name('users.export');
 
     Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');

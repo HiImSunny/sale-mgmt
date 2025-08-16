@@ -120,9 +120,11 @@
                 <p class="text-secondary mb-0">Chi tiết thông tin sản phẩm</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="{{ route('products.edit', $product) }}" class="btn btn-primary">
-                    <i class="fas fa-edit me-2"></i>Chỉnh sửa
-                </a>
+                @if (Auth::user()->role === '')
+                    <a href="{{ route('products.edit', $product) }}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Chỉnh sửa
+                    </a>
+                @endif
                 <a href="{{ route('products.index') }}" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>Danh sách
                 </a>

@@ -120,15 +120,38 @@ class SettingsController extends Controller
     /**
      * Tạo backup full
      */
-    public function createFullBackup()
+    public function createFullBackup(Request $request)
     {
         try {
             $backupFileName = $this->backupService->createFullBackup();
-            return redirect()->back()->with('success', "Backup full đã được tạo thành công: {$backupFileName}");
+            $msg = "Backup full đã được tạo thành công: {$backupFileName}";
+
+            // Nếu là AJAX (fetch, axios, hoặc X-Requested-With...)
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'fileName' => $backupFileName,
+                ]);
+            }
+
+            // Nếu là submit form hoặc truy cập bình thường:
+            return redirect()->back()->with('success', $msg);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Lỗi tạo backup: ' . $e->getMessage());
+            $err = 'Lỗi tạo backup: ' . $e->getMessage();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $err,
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', $err);
         }
     }
+
+
 
     /**
      * Tạo backup database

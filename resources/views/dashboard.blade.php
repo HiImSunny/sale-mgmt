@@ -287,9 +287,6 @@
                             <a href="{{ route('customers.create') }}" class="btn btn-info quick-action-btn">
                                 <i class="fas fa-user-plus me-2"></i>Thêm khách hàng
                             </a>
-                            <button class="btn btn-warning quick-action-btn" onclick="generateReport()">
-                                <i class="fas fa-file-export me-2"></i>Xuất báo cáo
-                            </button>
                             <button class="btn btn-secondary quick-action-btn" onclick="backupSystem()">
                                 <i class="fas fa-database me-2"></i>Sao lưu dữ liệu
                             </button>
@@ -465,11 +462,11 @@
                                     <ul class="mb-0">
                                         @foreach($analytics['lowStockProducts']->take(5) as $product)
                                             <li>
-                                                <strong>{{ $product->product->name }}</strong>
-                                                @if($product->variant_name)
-                                                    ({{ $product->variant_name }})
+                                                <strong>{{ $product['product_name'] }}</strong>
+                                                @if($product['variant_name'])
+                                                    ({{ $product['variant_name'] }})
                                                 @endif
-                                                - còn <span class="text-danger">{{ $product->stock_quantity }}</span> cái
+                                                - còn <span class="text-danger">{{ $product['stock_quantity'] }}</span> cái
                                             </li>
                                         @endforeach
                                         @if($analytics['lowStockProducts']->count() > 5)
@@ -717,23 +714,12 @@
                 });
         }
 
-        // Quick action functions
-        function generateReport() {
-            PosAlert.confirm(
-                'Xuất báo cáo',
-                'Bạn muốn xuất báo cáo nào?',
-                function() {
-                    window.location.href = '/reports/generate';
-                }
-            );
-        }
-
         function backupSystem() {
             PosAlert.confirm(
                 'Sao lưu hệ thống',
                 'Thao tác này có thể mất vài phút. Bạn có chắc chắn muốn tiếp tục?',
                 function() {
-                    fetch('/system/backup', {
+                    fetch('/backup/create-full', {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
@@ -789,10 +775,9 @@
 
         let salesChart = null;
 
-        // Initialize chart when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initSalesChart();
-            loadChartData('7days'); // Load default data
+            loadChartData('7days');
         });
 
         function initSalesChart() {
@@ -838,7 +823,6 @@
         }
 
         function loadChartData(period) {
-            // Show loading state
             showChartLoading(true);
 
             fetch(`/dashboard/sales-chart?period=${period}`, {
