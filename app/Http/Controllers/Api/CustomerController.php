@@ -20,4 +20,18 @@ class CustomerController extends Controller
 
         return response()->json($customers);
     }
+
+    public function findByPhone(Request $request) {
+        $query = \App\Models\Customer::where('phone', $request->get('phone'));
+        if ($request->has('name')) $query->where('name', 'like', '%' . $request->get('name') . '%');
+        $customer = $query->first();
+        if ($customer) {
+            return response()->json(['success' => true, 'data' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'points' => $customer->points // hoặc fields bạn muốn trả về
+            ]]);
+        }
+        return response()->json(['success' => false]);
+    }
 }

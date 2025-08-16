@@ -13,3 +13,5 @@ Route::get('/products/search', [ProductController::class, 'search']);
 Route::get('/categories', [ProductController::class, 'categories']);
 
 Route::get('/customers/search', [CustomerController::class, 'search']);
+
+Route::get('/customers/by-phone', [CustomerController::class, 'findByPhone']);

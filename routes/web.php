@@ -16,7 +16,7 @@ use App\Http\Controllers\AttributeValueController;
 use App\Http\Controllers\VNPayController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:admin', 'checkSession'])->group(function () {
     Route::get('/', [DashboardController::class, 'dashboard'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'dashboard']);
     Route::get('/dashboard/sales-chart', [DashboardController::class, 'getSalesChart']);
@@ -67,7 +67,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     });
 });
 
-Route::middleware(['auth', 'role:seller,admin'])->group(function () {
+Route::middleware(['auth', 'role:seller,admin', 'checkSession'])->group(function () {
     Route::get('/pos', [POSController::class, 'index'])->name('pos');
 
     Route::post('/pos/create-order', [POSController::class, 'createOrder'])->name('pos.create-order');
@@ -93,7 +93,7 @@ Route::middleware(['auth', 'role:seller,admin'])->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'checkSession'])->group(function () {
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::get('/orders/{order}/refund-invoice', [OrderController::class, 'refundInvoice'])->name('orders.refund-invoice');
 });

@@ -118,25 +118,11 @@
                             </div>
                             <div class="col-md-4 text-md-end">
                                 <div class="btn-group">
-                                    <a href="{{ route('customers.edit', $customer) }}" class="btn btn-light">
-                                        <i class="fas fa-edit me-2"></i>Chỉnh sửa
-                                    </a>
-                                    <button class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-
-
-
                                     <div class="d-flex gap-2">
-                                        <ul class="dropdown-menu ">
-                                            <li><a class="dropdown-item" href="#" onclick="addNote()">
-                                                    <i class="fas fa-sticky-note me-2"></i>Thêm ghi chú
-                                                </a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteCustomer()">
-                                                    <i class="fas fa-trash me-2"></i>Xóa khách hàng
-                                                </a></li>
-                                        </ul>
+                                        <a href="{{ route('customers.edit', $customer) }}" class="btn btn-light">
+                                            <i class="fas fa-edit me-2"></i>Chỉnh sửa
+                                        </a>
+
                                         <a href="{{ route('customers.index') }}" class="btn btn-light">
                                             <i class="fas fa-arrow-left me-2"></i>Quay lại
                                         </a>
@@ -146,7 +132,6 @@
                         </div>
                     </div>
 
-                    {{-- Customer Info --}}
                     <div class="card-body">
                         <div class="row">
                             @if($customer->address)

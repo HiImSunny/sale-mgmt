@@ -105,7 +105,7 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
-        return view('customer.create', compact('customer'));
+        return view('customer.edit', compact('customer'));
     }
 
     public function update(Request $request, Customer $customer)
@@ -130,7 +130,6 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
-        // ✅ Soft check - không xóa nếu có đơn hàng
         if ($customer->orders()->exists()) {
             return back()->with('swal_error', 'Không thể xóa khách hàng có lịch sử mua hàng!');
         }

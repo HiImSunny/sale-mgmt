@@ -32,6 +32,9 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
+        $request->session()->put('login_ip', $request->ip());
+        $request->session()->put('user_agent', $request->header('User-Agent'));
+
         if ($user->hasRole('admin')) {
             return redirect()->route('dashboard');
         }

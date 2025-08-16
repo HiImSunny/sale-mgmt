@@ -50,6 +50,10 @@ class Order extends Model
         });
     }
 
+    public function orderItems() {
+        return $this->hasMany(OrderItem::class);
+    }
+
     // Relationships
     public function user()
     {
