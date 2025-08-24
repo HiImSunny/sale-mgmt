@@ -2,10 +2,8 @@ let cart = [];
 let currentOrder = null;
 let vnpayWindow = null;
 
-// Barcode Scanner Variables
 let barcodeListenerActive = false;
 
-// Categories and Search
 let categories = [];
 let searchTimeout = null;
 
@@ -13,52 +11,37 @@ let vnpayPopupWindow = null;
 let paymentCheckInterval = null;
 const POPUP_CHECK_INTERVAL = 1000;
 
-// ========================================
-// INITIALIZATION
-// ========================================
 document.addEventListener('DOMContentLoaded', function () {
     const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode');
-    if (mode === 'refund') {
-        switchMode('refund');
-    }
 
     initializeEventListeners();
     loadCategories();
     initializeUnifiedSearch();
     initializeBarcodeScanner();
 
-    // Auto-enable barcode scanner for POS
     setTimeout(() => {
         toggleBarcodeScanner();
     }, 1000);
 });
 
-// ========================================
-// EVENT LISTENERS INITIALIZATION
-// ========================================
 function initializeEventListeners() {
-    // Confirm payment button
     const confirmPaymentBtn = document.getElementById('confirm-payment');
     if (confirmPaymentBtn) {
         confirmPaymentBtn.addEventListener('click', confirmPayment);
     }
 
-    // Complete order button
     const completeOrderBtn = document.getElementById('complete-order');
     if (completeOrderBtn) {
         completeOrderBtn.addEventListener('click', completeOrder);
         completeOrderBtn.style.display = 'none';
     }
 
-    // Search input events
     const searchInput = document.getElementById('unified-search');
     if (searchInput) {
         searchInput.addEventListener('input', handleSearchInput);
         searchInput.addEventListener('keypress', handleSearchKeypress);
     }
 
-    // Payment method change
     document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
         radio.addEventListener('change', updatePaymentMethodUI);
     });
@@ -165,7 +148,6 @@ function searchProductByCodeAndAddToCart(code) {
             if (data.success && data.data) {
                 const product = data.data;
 
-                // Thêm thẳng vào giỏ hàng
                 const productForCart = {
                     id: product.product_id,
                     variant_id: product.id,
@@ -192,9 +174,6 @@ function searchProductByCodeAndAddToCart(code) {
         });
 }
 
-// ========================================
-// SEARCH FUNCTIONALITY
-// ========================================
 function initializeUnifiedSearch() {
     const searchInput = document.getElementById('unified-search');
     const searchResults = document.getElementById('search-results');

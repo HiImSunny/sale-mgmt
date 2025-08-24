@@ -182,7 +182,6 @@
                             @endforeach
                         </div>
 
-                        {{-- REWARDS --}}
                         <div class="setting-section">
                             <h6><i class="fas fa-gift"></i>Tích điểm</h6>
                             <div class="row">
@@ -213,7 +212,6 @@
                 <div class="col-lg-4">
                     <div class="sticky-sidebar">
 
-                        {{-- QUICK BACKUP (plain background) --}}
                         <div class="backup-quick-actions">
                             <h6><i class="fas fa-database me-2"></i>Sao lưu và khôi phục</h6>
                             <p class="mb-3">Sao lưu trước khi thay đổi để đảm bảo an toàn</p>
@@ -224,7 +222,6 @@
                             </div>
                         </div>
 
-                        {{-- THÔNG TIN HỆ THỐNG (thay thế khối cũ) --}}
                         <div class="settings-card">
                             <div class="card-header">
                                 <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Thông tin hệ thống</h6>

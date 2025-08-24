@@ -1,6 +1,6 @@
 :root {
-    --bg-primary: #f5f3f2;          /* Warm off-white background */
-    --bg-secondary: #eae6e3;        /* Light warm gray */
+    --bg-primary: #f5f3f2;
+    --bg-secondary: #eae6e3;
     --bg-white: #ffffff;
 
     --beige-lightest: #f4f1ee;
@@ -19,9 +19,9 @@
     --gray-dark: #866d69;
     --gray-darker: #5d524e;
 
-    --accent-primary: #ae8269;       /* Warm cinnamon */
-    --accent-secondary: #978772;     /* Muted olive */
-    --accent-warm: #d2c5c5;         /* Soft rose-beige */
+    --accent-primary: #ae8269;
+    --accent-secondary: #978772;
+    --accent-warm: #d2c5c5;
 
     /* Text colors */
     --text-primary: #342e2c;
