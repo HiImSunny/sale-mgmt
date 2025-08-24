@@ -33,7 +33,7 @@ class OrderSeeder extends Seeder
                 $customerId = $i % 2 === 0 ? $faker->randomElement($customers) : null;
 
                 $order = Order::create([
-                    'code'           => 'OD' . Str::upper(Str::random(8)),
+                    'code'           => 'POS' . Str::upper(Str::random(8)),
                     'payment_method' => $faker->randomElement(['vnpay', 'cash_at_counter']),
                     'payment_status' => 'paid',
                     'status'         => 'completed',
