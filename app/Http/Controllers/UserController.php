@@ -52,7 +52,6 @@ class UserController extends Controller
             'avatar'   => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
-        // Handle avatar upload
         $avatarPath = null;
         if ($request->hasFile('avatar')) {
             $avatarPath = $request->file('avatar')->store('avatars', 'public');
@@ -66,7 +65,7 @@ class UserController extends Controller
             'avatar'   => $avatarPath,
         ]);
 
-        return redirect()->route('user.index')->with('success', 'Đã tạo người dùng mới thành công!');
+        return redirect()->route('users.index')->with('success', 'Đã tạo người dùng mới thành công!');
     }
 
     public function show(User $user)
@@ -104,7 +103,6 @@ class UserController extends Controller
         ]);
 
         if ($request->hasFile('avatar')) {
-            // Xóa avatar cũ
             if ($user->avatar) {
                 Storage::disk('public')->delete($user->avatar);
             }
@@ -134,7 +132,6 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('success', 'Đã xóa người dùng thành công!');
     }
 
-    // Optional: Bulk delete
     public function bulkDelete(Request $request)
     {
         $request->validate([
@@ -153,7 +150,6 @@ class UserController extends Controller
         return response()->json(['success' => true]);
     }
 
-    // Optional: Export user data (simple version)
     public function export(Request $request)
     {
         $query = User::query();
@@ -173,7 +169,6 @@ class UserController extends Controller
 
         $users = $query->get();
 
-        // Tạo file CSV đơn giản
         $filename = 'users_' . date('Ymd_His') . '.csv';
         $headers = [
             'Content-Type' => 'text/csv',

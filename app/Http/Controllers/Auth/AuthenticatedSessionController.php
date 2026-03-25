@@ -12,9 +12,6 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): View
     {
         return view('auth.login');
@@ -45,12 +42,9 @@ class AuthenticatedSessionController extends Controller
 
         $this->destroy($request);
 
-        return back()->withErrors('Bạn không thể ');
+        return back()->withErrors('Có lỗi xảy ra, vui lòng thử lại hoặc liên hệ quản trị viên.');
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();

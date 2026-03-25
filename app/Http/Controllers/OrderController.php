@@ -19,7 +19,6 @@ class OrderController extends Controller
     {
         $query = Order::with(['customer', 'user', 'items']);
 
-        //  Search functionality
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
@@ -30,22 +29,18 @@ class OrderController extends Controller
             });
         }
 
-        //  Filter by status
         if ($status = $request->get('status')) {
             $query->where('status', $status);
         }
 
-        //  Filter by payment status
         if ($paymentStatus = $request->get('payment_status')) {
             $query->where('payment_status', $paymentStatus);
         }
 
-        //  Filter by order type
         if ($type = $request->get('type')) {
             $query->where('type', $type);
         }
 
-        //  Date range filter
         if ($dateFrom = $request->get('date_from')) {
             $query->whereDate('created_at', '>=', $dateFrom);
         }
@@ -53,7 +48,6 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $dateTo);
         }
 
-        //  Sorting
         $sortBy = $request->get('sort', 'created_at');
         $sortOrder = $request->get('order', 'desc');
 
@@ -64,7 +58,6 @@ class OrderController extends Controller
 
         $orders = $query->paginate(20)->withQueryString();
 
-        //  Statistics
         $stats = [
             'total' => Order::whereNot('type', 'refund')->count(),
             'pending' => Order::where('status', 'pending')->count(),
@@ -86,17 +79,15 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        //  Load relationships
         $order->load([
             'customer',
             'user',
             'items.product',
             'items.productVariant',
-            'parentOrder', // For refund orders
-            'refundOrders' // For sale orders that have been refunded
+            'parentOrder',
+            'refundOrders'
         ]);
 
-        //  Calculate additional stats
         $orderStats = [
             'items_count' => $order->items->count(),
             'total_quantity' => $order->items->sum('quantity'),
@@ -147,7 +138,6 @@ class OrderController extends Controller
 
     public function createRefund(Request $request, Order $order)
     {
-        //  Validate refund request
         if ($order->type !== 'sale' || $order->status !== 'completed') {
             return back()->with('swal_error', 'Chỉ có thể hoàn trả đơn hàng đã hoàn thành!');
         }
@@ -161,14 +151,12 @@ class OrderController extends Controller
         ]);
 
         DB::transaction(function () use ($order, $validated) {
-            //  Calculate refund amount
             $refundAmount = 0;
             $refundItems = [];
 
             foreach ($validated['refund_items'] as $refundItem) {
                 $orderItem = OrderItem::find($refundItem['order_item_id']);
 
-                //  Validate order item belongs to this order
                 if ($orderItem->order_id !== $order->id) {
                     throw new \Exception('Item không thuộc đơn hàng này');
                 }

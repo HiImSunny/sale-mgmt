@@ -21,7 +21,6 @@ class ProductController extends Controller
             ], 400);
         }
 
-        // Tìm variant trước (ưu tiên cao nhất)
         $variant = ProductVariant::with(['product.images', 'attributeValues.attributeValue.attribute'])
             ->where(function($q) use ($code) {
                 $q->where('sku', $code)
@@ -171,7 +170,6 @@ class ProductController extends Controller
 
         $results = [];
 
-        // Tìm variants trước (ưu tiên cao)
         if ($type === 'all' || $type === 'variant') {
             try {
                 $variantQuery = ProductVariant::with(['product.images', 'product.categories', 'attributeValues.attributeValue.attribute'])

@@ -28,26 +28,22 @@ class VNPayController extends Controller
             $vnp_TxnRef = $request->get('vnp_TxnRef');
             $source = $request->get('source', 'pos');
 
-            // Verify signature
             if (!$this->vnpayService->verifyPayment($request)) {
                 return $this->returnResponse($source, false, 'Chữ ký không hợp lệ');
             }
 
-            // Get order from TxnRef
             $order = $this->getOrderFromTxnRef($vnp_TxnRef);
             if (!$order) {
                 return $this->returnResponse($source, false, 'Không tìm thấy đơn hàng');
             }
 
             if ($vnp_ResponseCode == '00') {
-                // Payment success
                 DB::transaction(function () use ($order) {
                     $this->processSuccessfulPayment($order);
                 });
 
                 return $this->returnResponse($source, true, 'Thanh toán thành công', $order);
             } else {
-                // Payment failed
                 $order->update(['payment_status' => 'failed']);
                 return $this->returnResponse($source, false, 'Thanh toán thất bại', $order);
             }
@@ -69,7 +65,6 @@ class VNPayController extends Controller
 
     private function getOrderFromTxnRef($txnRef)
     {
-        // Extract order ID from POS_<order_id>_<timestamp> format
         if (str_starts_with($txnRef, 'POS_')) {
             $parts = explode('_', $txnRef);
             if (count($parts) >= 2) {
@@ -81,39 +76,38 @@ class VNPayController extends Controller
         return null;
     }
 
-    public function handleIPN(Request $request)
-    {
-        try {
-            $vnp_ResponseCode = $request->get('vnp_ResponseCode');
-            $vnp_TxnRef = $request->get('vnp_TxnRef');
-
-            if (!$this->vnpayService->verifyPayment($request)) {
-                return response()->json(['RspCode' => '97', 'Message' => 'Invalid signature']);
-            }
-
-            // Get order
-            $order = $this->getOrderFromTxnRef($vnp_TxnRef);
-
-            if (!$order) {
-                return response()->json(['RspCode' => '01', 'Message' => 'Order not found']);
-            }
-
-            if ($vnp_ResponseCode == '00') {
-                if ($order->payment_status !== 'paid') {
-                    DB::transaction(function () use ($order) {
-                        $this->processSuccessfulPayment($order);
-                    });
-                }
-                return response()->json(['RspCode' => '00', 'Message' => 'Success']);
-            } else {
-                $order->update(['payment_status' => 'failed']);
-                return response()->json(['RspCode' => '00', 'Message' => 'Payment failed']);
-            }
-        } catch (Exception $e) {
-            Log::error('VNPAY IPN Error: ' . $e->getMessage());
-            return response()->json(['RspCode' => '99', 'Message' => 'System error']);
-        }
-    }
+//    public function handleIPN(Request $request)
+//    {
+//        try {
+//            $vnp_ResponseCode = $request->get('vnp_ResponseCode');
+//            $vnp_TxnRef = $request->get('vnp_TxnRef');
+//
+//            if (!$this->vnpayService->verifyPayment($request)) {
+//                return response()->json(['RspCode' => '97', 'Message' => 'Invalid signature']);
+//            }
+//
+//            $order = $this->getOrderFromTxnRef($vnp_TxnRef);
+//
+//            if (!$order) {
+//                return response()->json(['RspCode' => '01', 'Message' => 'Order not found']);
+//            }
+//
+//            if ($vnp_ResponseCode == '00') {
+//                if ($order->payment_status !== 'paid') {
+//                    DB::transaction(function () use ($order) {
+//                        $this->processSuccessfulPayment($order);
+//                    });
+//                }
+//                return response()->json(['RspCode' => '00', 'Message' => 'Success']);
+//            } else {
+//                $order->update(['payment_status' => 'failed']);
+//                return response()->json(['RspCode' => '00', 'Message' => 'Payment failed']);
+//            }
+//        } catch (Exception $e) {
+//            Log::error('VNPAY IPN Error: ' . $e->getMessage());
+//            return response()->json(['RspCode' => '99', 'Message' => 'System error']);
+//        }
+//    }
 
     private function processSuccessfulPayment(Order $order)
     {
@@ -147,7 +141,6 @@ class VNPayController extends Controller
                     Log::info("VNPay payment processed - Variant {$variant->id} stock reduced by {$item->quantity} (Order: {$order->code})");
                 }
             } elseif ($item->product_id) {
-                // ✅ FIXED: Handle simple product inventory
                 $product = Product::find($item->product_id);
 
                 if ($product && !$product->has_variants) {
@@ -161,57 +154,56 @@ class VNPayController extends Controller
             }
         }
 
-        if ($order->customer) {
-            $this->updateCustomerStats($order->customer);
-        }
+//        if ($order->customer) {
+//            $this->updateCustomerStats($order->customer);
+//        }
     }
-
-    private function updateCustomerStats($customer)
-    {
-        try {
-            $completedSaleOrders = $customer->orders()
-                ->where('type', 'sale')
-                ->where('status', 'completed');
-
-            $completedRefundOrders = $customer->orders()
-                ->where('type', 'refund')
-                ->where('status', 'completed');
-
-            $totalSalesAmount = $completedSaleOrders->sum('grand_total');
-            $totalRefundAmount = $completedRefundOrders->sum('grand_total');
-            $netSpending = $totalSalesAmount - $totalRefundAmount;
-
-            $customer->update([
-                'total_orders' => $completedSaleOrders->count(),
-                'total_spent' => max(0, $netSpending), // Ensure non-negative
-            ]);
-
-            // Update customer tier based on new spending
-            $this->updateCustomerTier($customer);
-
-            Log::info("Customer stats updated after VNPay payment for customer {$customer->id}: Orders: {$customer->total_orders}, Spent: {$customer->total_spent}");
-
-        } catch (Exception $e) {
-            Log::error("Error updating customer stats for customer {$customer->id}: " . $e->getMessage());
-        }
-    }
-
-    private function updateCustomerTier($customer)
-    {
-        $oldTier = $customer->customer_tier;
-        $newTier = 'bronze';
-
-        if ($customer->total_spent >= 50000000) { // 50M VND
-            $newTier = 'platinum';
-        } elseif ($customer->total_spent >= 20000000) { // 20M VND
-            $newTier = 'gold';
-        } elseif ($customer->total_spent >= 5000000) { // 5M VND
-            $newTier = 'silver';
-        }
-
-        if ($oldTier !== $newTier) {
-            $customer->update(['customer_tier' => $newTier]);
-            Log::info("Customer tier updated after VNPay payment for customer {$customer->id}: {$oldTier} → {$newTier}");
-        }
-    }
+//
+//    private function updateCustomerStats($customer)
+//    {
+//        try {
+//            $completedSaleOrders = $customer->orders()
+//                ->where('type', 'sale')
+//                ->where('status', 'completed');
+//
+//            $completedRefundOrders = $customer->orders()
+//                ->where('type', 'refund')
+//                ->where('status', 'completed');
+//
+//            $totalSalesAmount = $completedSaleOrders->sum('grand_total');
+//            $totalRefundAmount = $completedRefundOrders->sum('grand_total');
+//            $netSpending = $totalSalesAmount - $totalRefundAmount;
+//
+//            $customer->update([
+//                'total_orders' => $completedSaleOrders->count(),
+//                'total_spent' => max(0, $netSpending),
+//            ]);
+//
+//            $this->updateCustomerTier($customer);
+//
+//            Log::info("Customer stats updated after VNPay payment for customer {$customer->id}: Orders: {$customer->total_orders}, Spent: {$customer->total_spent}");
+//
+//        } catch (Exception $e) {
+//            Log::error("Error updating customer stats for customer {$customer->id}: " . $e->getMessage());
+//        }
+//    }
+//
+//    private function updateCustomerTier($customer)
+//    {
+//        $oldTier = $customer->customer_tier;
+//        $newTier = 'bronze';
+//
+//        if ($customer->total_spent >= 50000000) {
+//            $newTier = 'platinum';
+//        } elseif ($customer->total_spent >= 20000000) {
+//            $newTier = 'gold';
+//        } elseif ($customer->total_spent >= 5000000) {
+//            $newTier = 'silver';
+//        }
+//
+//        if ($oldTier !== $newTier) {
+//            $customer->update(['customer_tier' => $newTier]);
+//            Log::info("Customer tier updated after VNPay payment for customer {$customer->id}: {$oldTier} → {$newTier}");
+//        }
+//    }
 }

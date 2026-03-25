@@ -305,7 +305,6 @@ class ProductController extends Controller
 
     public function export(Request $request)
     {
-        // Determine if exporting selected products or all with filters
         if ($request->has('product_ids')) {
             $products = Product::with(['categories', 'variants'])
                 ->whereIn('id', $request->product_ids)
@@ -313,7 +312,6 @@ class ProductController extends Controller
         } else {
             $query = Product::with(['categories', 'variants']);
 
-            // Apply filters
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
@@ -360,12 +358,10 @@ class ProductController extends Controller
             $products = $query->get();
         }
 
-        // Create Excel file
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Danh sách sản phẩm');
 
-        // Headers
         $headers = [
             'A1' => 'ID',
             'B1' => 'Tên sản phẩm',
@@ -386,7 +382,6 @@ class ProductController extends Controller
             $sheet->setCellValue($cell, $value);
         }
 
-        // Style headers
         $headerStyle = [
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '0d6efd']],
@@ -423,10 +418,8 @@ class ProductController extends Controller
             $row++;
         }
 
-        // Create filename and save
         $filename = 'danh_sach_san_pham_' . date('Y-m-d_H-i-s') . '.xlsx';
 
-        // Set proper headers for Excel download
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $filename . '"');
         header('Cache-Control: max-age=0');

@@ -109,7 +109,6 @@ class ProductVariantController extends Controller
         $product = $variant->product;
         $variant->delete();
 
-        // Check if product still has variants
         if ($product->variants()->count() === 0) {
             $product->update(['has_variants' => false]);
         }

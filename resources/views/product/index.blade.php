@@ -69,14 +69,14 @@
 @endpush
 
 @section('content')
-    <div class="container-fluid">
-
+    <<div class="container-fluid">
         <div class="row g-3 mb-4">
             <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                 <div class="card stats-card">
                     <div class="card-body text-center">
                         <div class="display-6 fw-bold text-primary">{{ $stats['total'] }}</div>
                         <div class="text-muted">Tổng sản phẩm</div>
+                        <div class="icon-bg"><i class="fas fa-box"></i></div>
                     </div>
                 </div>
             </div>
@@ -85,6 +85,7 @@
                     <div class="card-body text-center">
                         <div class="display-6 fw-bold text-success">{{ $stats['active'] }}</div>
                         <div class="text-muted">Đang hoạt động</div>
+                        <div class="icon-bg"><i class="fas fa-check-circle"></i></div>
                     </div>
                 </div>
             </div>
@@ -93,6 +94,7 @@
                     <div class="card-body text-center">
                         <div class="display-6 fw-bold text-secondary">{{ $stats['inactive'] }}</div>
                         <div class="text-muted">Không hoạt động</div>
+                        <div class="icon-bg"><i class="fas fa-times-circle"></i></div>
                     </div>
                 </div>
             </div>
@@ -101,6 +103,7 @@
                     <div class="card-body text-center">
                         <div class="display-6 fw-bold text-info">{{ $stats['in_stock'] }}</div>
                         <div class="text-muted">Còn hàng</div>
+                        <div class="icon-bg"><i class="fas fa-thumbs-up"></i></div>
                     </div>
                 </div>
             </div>
@@ -109,6 +112,7 @@
                     <div class="card-body text-center">
                         <div class="display-6 fw-bold text-danger">{{ $stats['out_of_stock'] }}</div>
                         <div class="text-muted">Hết hàng</div>
+                        <div class="icon-bg"><i class="fas fa-thumbs-down"></i></div>
                     </div>
                 </div>
             </div>
@@ -117,12 +121,15 @@
                     <div class="card-body text-center">
                         <div class="display-6 fw-bold text-warning">{{ $stats['with_variants'] }}</div>
                         <div class="text-muted">Số lượng biến thể</div>
+                        <div class="icon-bg"><i class="fas fa-layer-group"></i></div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Products Table -->
+
+    <!-- Products Table -->
         <div class="row">
             <div class="col-12">
                 <div class="card">

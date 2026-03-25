@@ -12,7 +12,6 @@ class CategoryController extends Controller
     {
         $q = Category::query();
 
-        // Tìm kiếm theo tên hoặc slug
         if ($search = $request->input('search')) {
             $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
@@ -20,7 +19,6 @@ class CategoryController extends Controller
             });
         }
 
-        // Lấy tất cả cha để filter hoặc select cha khi tạo/sửa
         $categoriesParent = Category::whereNull('parent_id')->get();
 
         $categories = $q->with('parent')

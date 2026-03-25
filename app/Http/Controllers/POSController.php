@@ -42,13 +42,11 @@ class POSController extends Controller
         DB::beginTransaction();
 
         try {
-            // Calculate totals và create order
             $subtotal = 0;
             $orderItems = [];
 
             foreach ($request->items as $item) {
                 if (isset($item['variant_id']) && $item['variant_id']) {
-                    // Handle variant
                     $variant = ProductVariant::with(['product', 'attributeValues.attributeValue.attribute'])->find($item['variant_id']);
 
                     if (!$variant) {
@@ -127,10 +125,8 @@ class POSController extends Controller
                 'notes' => 'Đơn hàng POS tại quầy'
             ]);
 
-            // Create order items
             foreach ($orderItems as $itemData) {
                 if ($itemData['type'] === 'variant') {
-                    // Variant order item
                     $variant = $itemData['variant'];
 
                     $attributesSnapshot = $variant->attributeValues->map(function ($attrValue) {
@@ -182,7 +178,6 @@ class POSController extends Controller
                 ]
             ];
 
-            // Nếu thanh toán VNPay, mở VnPayModal
             if ($request->payment_method === 'vnpay') {
                 $qrData = $this->vnpayQRService->generateVNPayLink(
                     $order->id,
@@ -232,22 +227,29 @@ class POSController extends Controller
      */
     public function confirmPayment(Request $request, Order $order)
     {
+        logger()->info(-1);
         $request->validate([
             'payment_method' => 'required|in:cash_at_counter,vnpay'
         ]);
 
+        logger()->info(0);
+
         if ($order->payment_status === 'paid') {
             if ($order->payment_method === 'vnpay') {
+                logger()->info(1);
                 return response()->json([
                     'success' => true,
                     'message' => 'Đơn hàng đã được thanh toán'
                 ]);
             }
+            logger()->info(2);
             return response()->json([
                 'success' => false,
                 'message' => 'Đơn hàng đã được thanh toán'
             ], 400);
         }
+
+        logger()->info(3);
 
         DB::beginTransaction();
 
@@ -270,6 +272,7 @@ class POSController extends Controller
             ]);
 
         } catch (Exception $e) {
+            logger()->info(4);
             DB::rollback();
             return response()->json([
                 'success' => false,
@@ -400,12 +403,10 @@ class POSController extends Controller
         try {
             $parentOrder = Order::findOrFail($request->parent_order_id);
 
-            // ✅ FIXED: Basic validation instead of canBeRefunded method
             if ($parentOrder->type !== 'sale' || $parentOrder->status !== 'completed') {
                 throw new Exception('Đơn hàng không thể hoàn trả');
             }
 
-            // Calculate refund total
             $refundTotal = 0;
             $refundItems = [];
 
@@ -431,15 +432,14 @@ class POSController extends Controller
                 ];
             }
 
-            // Create refund order
             $refundOrder = Order::create([
                 'type' => 'refund',
                 'parent_order_id' => $parentOrder->id,
                 'user_id' => Auth::id(),
                 'code' => $this->generateOrderCode('RF'),
                 'payment_method' => $request->payment_method,
-                'payment_status' => 'paid', // Refund is immediately "paid"
-                'status' => 'completed', // ✅ FIXED: Use 'completed' instead of 'confirmed'
+                'payment_status' => 'paid',
+                'status' => 'completed',
                 'subtotal' => $refundTotal,
                 'grand_total' => $refundTotal,
                 'refund_reason' => $request->refund_reason,
@@ -447,7 +447,6 @@ class POSController extends Controller
                 'notes' => 'Hoàn trả từ POS - Đơn gốc: ' . $parentOrder->code
             ]);
 
-            // Create refund order items and restore inventory
             foreach ($refundItems as $itemData) {
                 $originalItem = $itemData['original_item'];
 
@@ -463,13 +462,10 @@ class POSController extends Controller
                     'attributes_snapshot' => $originalItem->attributes_snapshot
                 ]);
 
-                // ✅ FIXED: Restore inventory for both variants and simple products
                 if ($originalItem->product_variant_id) {
-                    // Handle variant inventory
                     $variant = $originalItem->productVariant;
                     $variant->increment('stock_quantity', $itemData['quantity']);
 
-                    // Create inventory transaction
                     InventoryTransaction::create([
                         'product_variant_id' => $variant->id,
                         'type' => 'in',
@@ -480,7 +476,6 @@ class POSController extends Controller
                         'note' => "Hoàn trả - #{$refundOrder->code}"
                     ]);
                 } elseif ($originalItem->product_id) {
-                    // ✅ FIXED: Handle simple product inventory
                     $product = Product::find($originalItem->product_id);
 
                     if ($product && !$product->has_variants) {
@@ -518,52 +513,52 @@ class POSController extends Controller
 
         return $code;
     }
-
-    private function updateCustomerStats($customer)
-    {
-        try {
-            $completedSaleOrders = $customer->orders()
-                ->where('type', 'sale')
-                ->where('status', 'completed');
-
-            $completedRefundOrders = $customer->orders()
-                ->where('type', 'refund')
-                ->where('status', 'completed');
-
-            $totalSalesAmount = $completedSaleOrders->sum('grand_total');
-            $totalRefundAmount = $completedRefundOrders->sum('grand_total');
-            $netSpending = $totalSalesAmount - $totalRefundAmount;
-
-            $customer->update([
-                'total_orders' => $completedSaleOrders->count(),
-                'total_spent' => max(0, $netSpending),
-            ]);
-
-            $this->updateCustomerTier($customer);
-
-            Log::info("Customer stats updated after payment for customer {$customer->id}: Orders: {$customer->total_orders}, Spent: {$customer->total_spent}");
-
-        } catch (Exception $e) {
-            Log::error("Error updating customer stats for customer {$customer->id}: " . $e->getMessage());
-        }
-    }
-
-    private function updateCustomerTier($customer)
-    {
-        $oldTier = $customer->customer_tier;
-        $newTier = 'bronze';
-
-        if ($customer->total_spent >= 50000000) {
-            $newTier = 'platinum';
-        } elseif ($customer->total_spent >= 20000000) {
-            $newTier = 'gold';
-        } elseif ($customer->total_spent >= 5000000) {
-            $newTier = 'silver';
-        }
-
-        if ($oldTier !== $newTier) {
-            $customer->update(['customer_tier' => $newTier]);
-            Log::info("Customer tier updated after VNPay payment for customer {$customer->id}: {$oldTier} → {$newTier}");
-        }
-    }
+//
+//    private function updateCustomerStats($customer)
+//    {
+//        try {
+//            $completedSaleOrders = $customer->orders()
+//                ->where('type', 'sale')
+//                ->where('status', 'completed');
+//
+//            $completedRefundOrders = $customer->orders()
+//                ->where('type', 'refund')
+//                ->where('status', 'completed');
+//
+//            $totalSalesAmount = $completedSaleOrders->sum('grand_total');
+//            $totalRefundAmount = $completedRefundOrders->sum('grand_total');
+//            $netSpending = $totalSalesAmount - $totalRefundAmount;
+//
+//            $customer->update([
+//                'total_orders' => $completedSaleOrders->count(),
+//                'total_spent' => max(0, $netSpending),
+//            ]);
+//
+//            $this->updateCustomerTier($customer);
+//
+//            Log::info("Customer stats updated after payment for customer {$customer->id}: Orders: {$customer->total_orders}, Spent: {$customer->total_spent}");
+//
+//        } catch (Exception $e) {
+//            Log::error("Error updating customer stats for customer {$customer->id}: " . $e->getMessage());
+//        }
+//    }
+//
+//    private function updateCustomerTier($customer)
+//    {
+//        $oldTier = $customer->customer_tier;
+//        $newTier = 'bronze';
+//
+//        if ($customer->total_spent >= 50000000) {
+//            $newTier = 'platinum';
+//        } elseif ($customer->total_spent >= 20000000) {
+//            $newTier = 'gold';
+//        } elseif ($customer->total_spent >= 5000000) {
+//            $newTier = 'silver';
+//        }
+//
+//        if ($oldTier !== $newTier) {
+//            $customer->update(['customer_tier' => $newTier]);
+//            Log::info("Customer tier updated after VNPay payment for customer {$customer->id}: {$oldTier} → {$newTier}");
+//        }
+//    }
 }

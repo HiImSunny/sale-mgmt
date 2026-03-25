@@ -238,7 +238,6 @@ class BackupService
             $destPath = $basePath . '/' . $item;
 
             if (File::exists($sourcePath)) {
-                // Backup current files first
                 if (File::exists($destPath)) {
                     $backupCurrentPath = $destPath . '_backup_' . now()->timestamp;
                     File::move($destPath, $backupCurrentPath);

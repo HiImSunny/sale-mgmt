@@ -40,12 +40,10 @@ class SettingsController extends Controller
     {
         $settings = [];
 
-        // Loyalty settings
         if (isset($data['loyalty_enabled'])) {
             $settings['loyalty.enabled'] = $data['loyalty_enabled'] === '1';
         }
 
-        // Rank thresholds
         $rankKeys = [
             'rank_bronze_min' => 'loyalty.ranks.bronze_min_amount',
             'rank_silver_min' => 'loyalty.ranks.silver_min_amount',
@@ -59,7 +57,6 @@ class SettingsController extends Controller
             }
         }
 
-        // Discount settings
         $discountRanks = ['regular', 'bronze', 'silver', 'gold', 'platinum'];
 
         foreach ($discountRanks as $rank) {
@@ -71,7 +68,6 @@ class SettingsController extends Controller
             }
         }
 
-        // Reward settings
         $rewardKeys = [
             'points_rate' => 'loyalty.rewards.points_rate',
             'points_value' => 'loyalty.rewards.points_value',
@@ -83,7 +79,6 @@ class SettingsController extends Controller
             }
         }
 
-        // General settings
         $generalKeys = [
             'site_name' => 'general.site_name',
             'contact_email' => 'general.contact_email',
@@ -117,16 +112,12 @@ class SettingsController extends Controller
         return view('backup.index', compact('backups'));
     }
 
-    /**
-     * Tạo backup full
-     */
     public function createFullBackup(Request $request)
     {
         try {
             $backupFileName = $this->backupService->createFullBackup();
             $msg = "Backup full đã được tạo thành công: {$backupFileName}";
 
-            // Nếu là AJAX (fetch, axios, hoặc X-Requested-With...)
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -135,7 +126,6 @@ class SettingsController extends Controller
                 ]);
             }
 
-            // Nếu là submit form hoặc truy cập bình thường:
             return redirect()->back()->with('success', $msg);
         } catch (\Exception $e) {
             $err = 'Lỗi tạo backup: ' . $e->getMessage();
@@ -151,11 +141,6 @@ class SettingsController extends Controller
         }
     }
 
-
-
-    /**
-     * Tạo backup database
-     */
     public function createDatabaseBackup()
     {
         try {
@@ -166,9 +151,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Restore từ backup
-     */
     public function restoreBackup(Request $request)
     {
         $request->validate([
@@ -195,9 +177,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Download backup
-     */
     public function downloadBackup($filename)
     {
         try {
@@ -207,9 +186,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Xóa backup
-     */
     public function deleteBackup(Request $request)
     {
         $request->validate([

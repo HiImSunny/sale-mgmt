@@ -22,14 +22,14 @@ class CustomerController extends Controller
     }
 
     public function findByPhone(Request $request) {
-        $query = \App\Models\Customer::where('phone', $request->get('phone'));
+        $query = Customer::where('phone', $request->get('phone'));
         if ($request->has('name')) $query->where('name', 'like', '%' . $request->get('name') . '%');
         $customer = $query->first();
         if ($customer) {
             return response()->json(['success' => true, 'data' => [
                 'id' => $customer->id,
                 'name' => $customer->name,
-                'points' => $customer->points // hoặc fields bạn muốn trả về
+                'points' => $customer->points
             ]]);
         }
         return response()->json(['success' => false]);
